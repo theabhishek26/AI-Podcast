@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+
+{% block title %}AI Podcast Generator - Create Amazing Podcasts with AI{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="hero-section">
+    <div class="container">
+        <div class="row align-items-center min-vh-100">
+            <div class="col-lg-6">
+                <div class="hero-content">
+                    <h1 class="hero-title">
+                        Create Conversational Podcasts with
+                        <span class="text-primary-custom">Dual AI Hosts</span>
+                    </h1>
+                    <p class="hero-subtitle">
+                        Transform your ideas into engaging podcast conversations between two AI hosts. 
+                        Our platform generates natural dialogue with distinct personalities 
+                        that sounds like real podcast discussions.
+                    </p>
+                    
+                    <div class="hero-actions">
+                        {% if current_user.is_authenticated %}
+                            <a href="{{ url_for('generator') }}" class="btn btn-primary-custom btn-lg me-3">
+                                <i class="fas fa-microphone me-2"></i>
+                                Start Creating
+                            </a>
+                        {% else %}
+                            <a href="{{ url_for('signup') }}" class="btn btn-primary-custom btn-lg me-3">
+                                <i class="fas fa-rocket me-2"></i>
+                                Get Started Free
+                            </a>
+                            <a href="{{ url_for('signin') }}" class="btn btn-outline-light btn-lg">
+                                Sign In
+                            </a>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="hero-stats mt-4">
+                        <div class="row">
+                            <div class="col-4">
+                                <div class="stat">
+                                    <h3 class="stat-number">10K+</h3>
+                                    <p class="stat-label">Podcasts Created</p>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="stat">
+                                    <h3 class="stat-number">50+</h3>
+                                    <p class="stat-label">AI Voices</p>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="stat">
+                                    <h3 class="stat-number">98%</h3>
+                                    <p class="stat-label">Quality Score</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-6">
+                <div class="hero-visual">
+                    <div class="podcast-card">
+                        <div class="podcast-player">
+                            <div class="player-header">
+                                <div class="podcast-artwork">
+                                    <i class="fas fa-podcast"></i>
+                                </div>
+                                <div class="podcast-info">
+                                    <h4>AI Generated Podcast</h4>
+                                    <p>Professional Quality Audio</p>
+                                </div>
+                            </div>
+                            
+                            <div class="player-controls">
+                                <div class="progress-bar">
+                                    <div class="progress-fill"></div>
+                                </div>
+                                <div class="controls">
+                                    <button class="control-btn">
+                                        <i class="fas fa-step-backward"></i>
+                                    </button>
+                                    <button class="control-btn play-btn">
+                                        <i class="fas fa-play"></i>
+                                    </button>
+                                    <button class="control-btn">
+                                        <i class="fas fa-step-forward"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Features Section -->
+<section class="features-section py-5">
+    <div class="container">
+        <div class="row text-center mb-5">
+            <div class="col-lg-8 mx-auto">
+                <h2 class="section-title">Why Choose PodcastAI?</h2>
+                <p class="section-subtitle">
+                    Experience the future of podcast creation with our cutting-edge AI technology
+                </p>
+            </div>
+        </div>
+        
+        <div class="row g-4">
+            <div class="col-md-4">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-magic"></i>
+                    </div>
+                    <h3>AI-Powered Generation</h3>
+                    <p>
+                        Advanced AI technology converts your text into natural-sounding 
+                        speech with human-like intonation and emotion.
+                    </p>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <h3>Lightning Fast</h3>
+                    <p>
+                        Generate professional podcasts in minutes, not hours. 
+                        Perfect for content creators with tight deadlines.
+                    </p>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <h3>Multiple Voices</h3>
+                    <p>
+                        Choose from 50+ premium AI voices in different languages, 
+                        accents, and speaking styles to match your content.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- CTA Section -->
+<section class="cta-section">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 mx-auto text-center">
+                <h2 class="cta-title">Ready to Create Your First AI Podcast?</h2>
+                <p class="cta-subtitle">
+                    Join thousands of content creators who trust PodcastAI 
+                    for their audio content needs.
+                </p>
+                
+                {% if not current_user.is_authenticated %}
+                    <a href="{{ url_for('signup') }}" class="btn btn-primary-custom btn-lg">
+                        <i class="fas fa-rocket me-2"></i>
+                        Start Creating Now
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}Sign In - AI Podcast Generator{% endblock %}
+
+{% block content %}
+<section class="auth-section">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-6 col-lg-5">
+                <div class="auth-card">
+                    <div class="auth-header text-center mb-4">
+                        <h2 class="auth-title">Welcome Back</h2>
+                        <p class="auth-subtitle">Sign in to continue creating amazing podcasts</p>
+                    </div>
+                    
+                    <form method="POST" class="auth-form">
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email Address</label>
+                            <input type="email" class="form-control form-control-lg" id="email" name="email" required>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label for="password" class="form-label">Password</label>
+                            <input type="password" class="form-control form-control-lg" id="password" name="password" required>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary-custom btn-lg w-100 mb-3">
+                            <i class="fas fa-sign-in-alt me-2"></i>
+                            Sign In
+                        </button>
+                    </form>
+                    
+                    <div class="auth-footer text-center">
+                        <p class="mb-0">
+                            Don't have an account? 
+                            <a href="{{ url_for('signup') }}" class="text-primary-custom text-decoration-none fw-semibold">
+                                Sign up here
+                            </a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
