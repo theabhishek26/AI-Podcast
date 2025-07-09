@@ -181,45 +181,22 @@ def generate_podcast():
     voice1 = request.form.get('voice1')
     voice2 = request.form.get('voice2')
     
-    if not all([title, description, voice1, voice2]):
-        flash('Title, description, and both voice selections are required.', 'error')
+    if not all([title, description, content, voice1, voice2]):
+        flash('Title, description, script content, and both voice selections are required.', 'error')
         return redirect(url_for('generator'))
     
     try:
-        # Generate conversational script using OpenAI
-        logging.info(f"Generating conversational script for: {title}")
+        # Use the provided script content directly (user formats it with Host 1:/Host 2:)
+        logging.info(f"Processing podcast script for: {title}")
         
-        # Generate conversational script
-        if openai_service.client:
-            script_result = openai_service.generate_podcast_script(title, description)
-            conversation_script = script_result.get('script')
-        else:
-            # Use fallback script generation if OpenAI is not available
-            conversation_script = f"""Alex: Welcome to today's podcast! I'm Alex, and I'm here with my co-host Jordan. 
-
-Jordan: Hi everyone! Today we're diving into an exciting topic: {title}. 
-
-Alex: That sounds fascinating! Jordan, can you tell us more about {description}?
-
-Jordan: Absolutely! {description} This is such an important topic because it affects many aspects of our daily lives.
-
-Alex: That's really interesting! What do you think our listeners should know about this?
-
-Jordan: Well, I think the key points to understand are the practical implications and how this might evolve in the future.
-
-Alex: Great insights! Before we wrap up, do you have any final thoughts for our audience?
-
-Jordan: I'd encourage everyone to stay curious and keep learning about topics like this. It's amazing how much there is to discover.
-
-Alex: Couldn't agree more! Thanks for joining us today, everyone. Until next time!
-
-Jordan: Thanks for listening, and we'll see you in the next episode!"""
+        # Format the script to use proper speaker labels for PlayHT API
+        formatted_script = content.replace("Host 1:", "Alex:").replace("Host 2:", "Jordan:")
         
-        # Create podcast record with the generated script
+        # Create podcast record with the user's script
         podcast = Podcast(
             title=title,
             description=description,
-            content=conversation_script,
+            content=content,  # Store original content with Host 1/Host 2 labels
             user_id=current_user.id,
             status='processing'
         )
@@ -230,7 +207,7 @@ Jordan: Thanks for listening, and we'll see you in the next episode!"""
         # Generate audio using Play HT with dual voices
         logging.info(f"Generating audio with voices: {voice1}, {voice2}")
         audio_result = playht_service.generate_audio(
-            text=conversation_script,
+            text=formatted_script,
             voice1=voice1,
             voice2=voice2,
             turn_prefix="Alex:",

@@ -7,9 +7,75 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeAnimations();
     initializeTooltips();
     initializeVoiceSelection();
+    initializeScriptFormatting();
     
     console.log('AI Podcast Generator initialized');
 });
+
+// Script Formatting Helper
+function initializeScriptFormatting() {
+    const contentTextarea = document.getElementById('content');
+    if (!contentTextarea) return;
+    
+    // Add character counter
+    const charCounter = document.createElement('div');
+    charCounter.className = 'form-text text-muted mt-2';
+    charCounter.innerHTML = '<span id="char-count">0</span> characters';
+    
+    // Add format helper button
+    const formatButton = document.createElement('button');
+    formatButton.type = 'button';
+    formatButton.className = 'btn btn-sm btn-outline-primary mt-2 me-2';
+    formatButton.innerHTML = '<i class="fas fa-magic"></i> Format Script';
+    formatButton.onclick = function() {
+        const currentContent = contentTextarea.value;
+        if (currentContent && !currentContent.includes('Host 1:') && !currentContent.includes('Host 2:')) {
+            const lines = currentContent.split('\n').filter(line => line.trim());
+            let formatted = '';
+            lines.forEach((line, index) => {
+                const speaker = index % 2 === 0 ? 'Host 1:' : 'Host 2:';
+                formatted += `${speaker} ${line.trim()}\n`;
+            });
+            contentTextarea.value = formatted;
+            updateCharCount();
+        }
+    };
+    
+    // Add line break helper
+    const lineBreakButton = document.createElement('button');
+    lineBreakButton.type = 'button';
+    lineBreakButton.className = 'btn btn-sm btn-outline-secondary mt-2';
+    lineBreakButton.innerHTML = '<i class="fas fa-plus"></i> Add Speaker Line';
+    lineBreakButton.onclick = function() {
+        const currentContent = contentTextarea.value;
+        const lines = currentContent.split('\n');
+        const lastLine = lines[lines.length - 1] || '';
+        const nextSpeaker = lastLine.includes('Host 1:') ? 'Host 2:' : 'Host 1:';
+        
+        if (currentContent && !currentContent.endsWith('\n')) {
+            contentTextarea.value += '\n';
+        }
+        contentTextarea.value += `${nextSpeaker} `;
+        contentTextarea.focus();
+        updateCharCount();
+    };
+    
+    // Insert elements after textarea
+    contentTextarea.parentNode.appendChild(formatButton);
+    contentTextarea.parentNode.appendChild(lineBreakButton);
+    contentTextarea.parentNode.appendChild(charCounter);
+    
+    // Update character count function
+    function updateCharCount() {
+        document.getElementById('char-count').textContent = contentTextarea.value.length;
+    }
+    
+    // Update character count on input
+    contentTextarea.addEventListener('input', updateCharCount);
+    
+    // Initialize character count
+    updateCharCount();
+}
 
 // Form Validation
 function initializeFormValidation() {
