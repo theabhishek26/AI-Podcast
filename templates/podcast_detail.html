@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+
+{% block title %}{{ podcast.title }}{% endblock %}
+
+{% block content %}
+<section class="podcast-detail-section py-5">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="podcast-detail-card">
+                    <div class="card-header">
+                        <h1 class="podcast-title">
+                            <i class="fas fa-podcast me-2"></i>
+                            {{ podcast.title }}
+                        </h1>
+                        <p class="podcast-meta">
+                            <span class="badge badge-status-{{ podcast.status }}">{{ podcast.status.title() }}</span>
+                            <span class="text-muted ms-2">Created on {{ podcast.created_at.strftime('%B %d, %Y at %I:%M %p') }}</span>
+                        </p>
+                    </div>
+                    
+                    <div class="card-body">
+                        {% if podcast.description %}
+                        <div class="podcast-description mb-4">
+                            <h3><i class="fas fa-info-circle me-2"></i>Description</h3>
+                            <p>{{ podcast.description }}</p>
+                        </div>
+                        {% endif %}
+                        
+                        {% if podcast.audio_url and podcast.status == 'completed' %}
+                        <div class="audio-player mb-4">
+                            <h3><i class="fas fa-play-circle me-2"></i>Audio</h3>
+                            <div class="audio-controls">
+                                <audio controls class="w-100">
+                                    <source src="{{ podcast.audio_url }}" type="audio/mpeg">
+                                    Your browser does not support the audio element.
+                                </audio>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="podcast-script">
+                            <h3><i class="fas fa-file-text me-2"></i>Script</h3>
+                            <div class="script-content">
+                                {% set lines = podcast.content.split('\n') %}
+                                {% for line in lines %}
+                                    {% if line.strip() %}
+                                        {% if line.startswith('Host 1:') %}
+                                            <div class="script-line host-1">
+                                                <span class="speaker-label">Host 1:</span>
+                                                <span class="dialogue">{{ line[7:].strip() }}</span>
+                                            </div>
+                                        {% elif line.startswith('Host 2:') %}
+                                            <div class="script-line host-2">
+                                                <span class="speaker-label">Host 2:</span>
+                                                <span class="dialogue">{{ line[7:].strip() }}</span>
+                                            </div>
+                                        {% else %}
+                                            <div class="script-line">
+                                                <span class="dialogue">{{ line.strip() }}</span>
+                                            </div>
+                                        {% endif %}
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                        </div>
+                        
+                        <div class="podcast-actions mt-4">
+                            <a href="{{ url_for('generator') }}" class="btn btn-primary">
+                                <i class="fas fa-arrow-left me-2"></i>Back to Generator
+                            </a>
+                            {% if podcast.audio_url %}
+                            <a href="{{ podcast.audio_url }}" download="{{ podcast.title }}.mp3" class="btn btn-success ms-2">
+                                <i class="fas fa-download me-2"></i>Download Audio
+                            </a>
+                            {% endif %}
+                            <form method="POST" action="{{ url_for('delete_podcast', podcast_id=podcast.id) }}" class="d-inline ms-2">
+                                <button type="submit" class="btn btn-danger" onclick="return confirm('Are you sure you want to delete this podcast?')">
+                                    <i class="fas fa-trash me-2"></i>Delete
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-4">
+                <div class="sidebar-card">
+                    <h3 class="sidebar-title">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Podcast Details
+                    </h3>
+                    <div class="detail-item">
+                        <strong>Status:</strong>
+                        <span class="badge badge-status-{{ podcast.status }}">{{ podcast.status.title() }}</span>
+                    </div>
+                    <div class="detail-item">
+                        <strong>Created:</strong>
+                        {{ podcast.created_at.strftime('%B %d, %Y') }}
+                    </div>
+                    {% if podcast.audio_url %}
+                    <div class="detail-item">
+                        <strong>Audio:</strong>
+                        <span class="text-success">Available</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<style>
+.podcast-detail-card {
+    background: var(--card-bg);
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+.podcast-title {
+    color: var(--primary-color);
+    margin-bottom: 1rem;
+}
+
+.podcast-meta {
+    color: var(--text-muted);
+    margin-bottom: 0;
+}
+
+.badge-status-completed {
+    background-color: #28a745;
+}
+
+.badge-status-processing {
+    background-color: #ffc107;
+}
+
+.badge-status-failed {
+    background-color: #dc3545;
+}
+
+.badge-status-pending {
+    background-color: #6c757d;
+}
+
+.script-content {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 1.5rem;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.script-line {
+    margin-bottom: 1rem;
+    padding: 0.5rem;
+    border-radius: 6px;
+}
+
+.script-line.host-1 {
+    background-color: #e3f2fd;
+    border-left: 4px solid #2196f3;
+}
+
+.script-line.host-2 {
+    background-color: #f3e5f5;
+    border-left: 4px solid #9c27b0;
+}
+
+.speaker-label {
+    font-weight: bold;
+    color: var(--primary-color);
+    margin-right: 0.5rem;
+}
+
+.dialogue {
+    line-height: 1.6;
+}
+
+.audio-controls {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 8px;
+}
+
+.detail-item {
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.detail-item:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+</style>
+{% endblock %}
