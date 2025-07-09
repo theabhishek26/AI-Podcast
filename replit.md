@@ -81,9 +81,17 @@ The application uses SQLAlchemy's pool configuration for database connection man
 
 Preferred communication style: Simple, everyday language.
 
+## API Requirements
+
+### PlayHT API Access
+- **Voice Loading**: Works with free plan (256 voices available)
+- **Audio Generation**: Requires paid plan for actual podcast creation
+- **Upgrade**: Visit https://play.ai/pricing to enable TTS functionality
+
 ## Changelog
 
 Changelog:
 - July 05, 2025. Initial setup
 - July 09, 2025. Updated PlayHT API integration to use v1 endpoints as per official documentation. Added dynamic voice loading with proper language grouping and search functionality. Enhanced voice selection UI with descriptions and language filtering.
 - July 09, 2025. Added PostgreSQL database with proper environment variables. Database is now connected and ready for production use.
+- July 09, 2025. Implemented complete PlayHT v1 API integration with dual-voice dialogue support using PlayDialog model. Added comprehensive error handling and proper job polling. Voice selection works with 256 real voices, but audio generation requires paid plan upgrade.

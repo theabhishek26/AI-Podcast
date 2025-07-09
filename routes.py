@@ -231,7 +231,7 @@ Jordan: Thanks for listening, and we'll see you in the next episode!"""
         logging.info(f"Generating audio with voices: {voice1}, {voice2}")
         audio_result = playht_service.generate_audio(
             text=conversation_script,
-            voice=voice1,
+            voice1=voice1,
             voice2=voice2,
             turn_prefix="Alex:",
             turn_prefix2="Jordan:"
@@ -244,7 +244,12 @@ Jordan: Thanks for listening, and we'll see you in the next episode!"""
             flash('Conversational podcast generated successfully!', 'success')
         else:
             podcast.status = 'failed'
-            flash(f'Failed to generate audio: {audio_result.get("error", "Unknown error")}', 'error')
+            error_message = audio_result.get('error', 'Unknown error')
+            
+            if 'API access is not available' in error_message:
+                flash('PlayHT API access requires a paid plan. Please upgrade at https://play.ai/pricing to enable podcast generation.', 'warning')
+            else:
+                flash(f'Failed to generate audio: {error_message}', 'error')
         
         db.session.commit()
         

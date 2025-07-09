@@ -12,9 +12,9 @@ class PlayHTService:
         if not self.api_key or not self.user_id:
             logging.warning("Play HT API credentials not found in environment variables")
     
-    def generate_audio(self, text, voice="en-US-JennyNeural", voice2=None, turn_prefix="Alex:", turn_prefix2="Jordan:"):
+    def generate_audio(self, text, voice1, voice2=None, turn_prefix="Alex:", turn_prefix2="Jordan:"):
         """
-        Generate audio from text using Play HT API
+        Generate audio from text using Play HT API v1 TTS endpoint
         """
         if not self.api_key or not self.user_id:
             return {
@@ -28,27 +28,32 @@ class PlayHTService:
             'Content-Type': 'application/json'
         }
         
-        # Use the v1 TTS endpoint as specified in the documentation
+        # Build payload based on PlayHT API v1 documentation
         payload = {
-            'model': 'PlayDialog',
+            'model': 'PlayDialog',  # Use PlayDialog for multi-turn conversations
             'text': text,
-            'voice': voice,
+            'voice': voice1,
             'outputFormat': 'mp3',
-            'speed': 1.0
+            'speed': 1.0,
+            'language': 'english'  # Default to English, can be parameterized later
         }
         
         # Add dual-voice support if second voice is provided
-        if voice2:
+        if voice2 and voice2 != voice1:
             payload['voice2'] = voice2
             payload['turnPrefix'] = turn_prefix
             payload['turnPrefix2'] = turn_prefix2
+            logging.info(f"Generating dual-voice audio with voices: {voice1} and {voice2}")
+        else:
+            logging.info(f"Generating single-voice audio with voice: {voice1}")
         
         try:
-            # Use the v1 endpoint as documented
+            # Create TTS job using v1 endpoint
             response = requests.post(
                 f"{self.base_url}/v1/tts",
                 json=payload,
-                headers=headers
+                headers=headers,
+                timeout=30
             )
             
             if response.status_code == 201:
@@ -56,6 +61,7 @@ class PlayHTService:
                 job_id = job_data.get('id')
                 
                 if job_id:
+                    logging.info(f"TTS job created with ID: {job_id}")
                     # Poll for completion using the v1 status endpoint
                     return self._poll_job_completion_v1(job_id, headers)
                 else:
@@ -63,12 +69,43 @@ class PlayHTService:
                         'success': False,
                         'error': 'No job ID returned from Play HT API'
                     }
+            elif response.status_code == 400:
+                error_data = response.json() if response.headers.get('content-type') == 'application/json' else {'error': response.text}
+                return {
+                    'success': False,
+                    'error': f'Bad request: {error_data.get("error", "Invalid parameters")}'
+                }
+            elif response.status_code == 401:
+                error_data = response.json() if response.headers.get('content-type') == 'application/json' else {}
+                error_message = error_data.get('errorMessage', 'Invalid API credentials')
+                
+                if 'API access is not available' in error_message:
+                    return {
+                        'success': False,
+                        'error': 'PlayHT API access requires a paid plan. Please upgrade at https://play.ai/pricing to enable podcast generation.'
+                    }
+                else:
+                    return {
+                        'success': False,
+                        'error': f'Authentication failed: {error_message}'
+                    }
+            elif response.status_code == 429:
+                return {
+                    'success': False,
+                    'error': 'Rate limit exceeded. Please try again later.'
+                }
             else:
                 return {
                     'success': False,
                     'error': f'API request failed with status {response.status_code}: {response.text}'
                 }
             
+        except requests.exceptions.Timeout:
+            logging.error("Timeout while creating TTS job")
+            return {
+                'success': False,
+                'error': 'Request timeout. Please try again.'
+            }
         except requests.exceptions.RequestException as e:
             logging.error(f"Request error: {e}")
             return {
