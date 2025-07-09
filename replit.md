@@ -85,3 +85,4 @@ Preferred communication style: Simple, everyday language.
 
 Changelog:
 - July 05, 2025. Initial setup
+- July 09, 2025. Updated PlayHT API integration to use v1 endpoints as per official documentation. Added dynamic voice loading with proper language grouping and search functionality. Enhanced voice selection UI with descriptions and language filtering.

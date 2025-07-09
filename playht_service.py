@@ -187,7 +187,7 @@ class PlayHTService:
     
     def get_voices(self):
         """
-        Get available voices from Play HT API
+        Get available voices from Play HT API using v1 endpoint
         """
         if not self.api_key or not self.user_id:
             return []
@@ -199,8 +199,9 @@ class PlayHTService:
         }
         
         try:
+            # Use v1 endpoint as specified in documentation
             response = requests.get(
-                f"{self.base_url}/v2/voices",
+                f"{self.base_url}/v1/voices",
                 headers=headers
             )
             
@@ -214,14 +215,12 @@ class PlayHTService:
                         'id': voice.get('id', ''),
                         'name': voice.get('name', 'Unknown Voice'),
                         'language': voice.get('language', 'Unknown'),
-                        'language_code': voice.get('language_code', ''),
                         'gender': voice.get('gender', 'Unknown'),
-                        'age': voice.get('age', 'Unknown'),
                         'accent': voice.get('accent', ''),
-                        'style': voice.get('style', ''),
-                        'tempo': voice.get('tempo', 'normal'),
-                        'texture': voice.get('texture', ''),
-                        'loudness': voice.get('loudness', 'normal')
+                        'description': voice.get('description', ''),
+                        'sample': voice.get('sample', ''),
+                        'tags': voice.get('tags', []),
+                        'categories': voice.get('categories', [])
                     })
                 
                 return formatted_voices

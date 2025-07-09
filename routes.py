@@ -97,41 +97,41 @@ def generator():
     # Get available voices from Play HT
     available_voices = playht_service.get_voices()
     
-    # If no voices are available from API, provide fallback voices
+    # If no voices are available from API, provide fallback voices with proper v1 API format
     if not available_voices:
         available_voices = [
             {
                 'id': 's3://voice-cloning-zero-shot/baf1ef41-36b6-428c-9bdf-50ba54682bd8/original/manifest.json',
-                'name': 'Jenny',
-                'language': 'English (US)',
-                'gender': 'Female',
-                'accent': 'American',
-                'style': 'Neural',
-                'tempo': 'normal',
-                'texture': 'smooth',
-                'loudness': 'normal'
+                'name': 'Jenny - Conversational',
+                'language': 'english',
+                'gender': 'female',
+                'accent': 'american',
+                'description': 'A friendly, conversational voice perfect for podcasts',
+                'sample': '',
+                'tags': ['conversational', 'friendly'],
+                'categories': ['podcasting']
             },
             {
                 'id': 's3://voice-cloning-zero-shot/820a3788-2b37-4d21-847a-b65d8a68c99a/original/manifest.json',
-                'name': 'Guy',
-                'language': 'English (US)', 
-                'gender': 'Male',
-                'accent': 'American',
-                'style': 'Neural',
-                'tempo': 'normal',
-                'texture': 'warm',
-                'loudness': 'normal'
+                'name': 'Guy - Professional',
+                'language': 'english', 
+                'gender': 'male',
+                'accent': 'american',
+                'description': 'A professional, authoritative male voice',
+                'sample': '',
+                'tags': ['professional', 'authoritative'],
+                'categories': ['podcasting']
             },
             {
                 'id': 's3://voice-cloning-zero-shot/d82d246c-148b-4c93-8c6a-f2c9c2b9e5a7/original/manifest.json',
-                'name': 'Libby',
-                'language': 'English (UK)',
-                'gender': 'Female',
-                'accent': 'British',
-                'style': 'Neural',
-                'tempo': 'normal',
-                'texture': 'clear',
-                'loudness': 'normal'
+                'name': 'Libby - British',
+                'language': 'english',
+                'gender': 'female',
+                'accent': 'british',
+                'description': 'A clear, articulate British accent',
+                'sample': '',
+                'tags': ['british', 'clear'],
+                'categories': ['podcasting']
             }
         ]
     
@@ -241,3 +241,20 @@ def delete_podcast(podcast_id):
         flash('An error occurred while deleting the podcast.', 'error')
     
     return redirect(url_for('generator'))
+
+@app.route('/api/voices')
+@login_required
+def get_voices_api():
+    """API endpoint to get available voices from Play HT"""
+    try:
+        voices = playht_service.get_voices()
+        return jsonify({
+            'success': True,
+            'voices': voices
+        })
+    except Exception as e:
+        logging.error(f"Error getting voices via API: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500

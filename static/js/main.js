@@ -369,67 +369,164 @@ function throttle(func, limit) {
 
 // Voice Selection Enhancement
 function initializeVoiceSelection() {
-    const voiceSelect = document.getElementById('voice');
-    if (!voiceSelect) return;
+    const voiceSelects = document.querySelectorAll('select[name="voice1"], select[name="voice2"]');
     
-    // Add change event listener
-    voiceSelect.addEventListener('change', function() {
-        const selectedOption = this.options[this.selectedIndex];
-        if (selectedOption.value) {
-            showVoiceInfo(selectedOption);
-        }
+    voiceSelects.forEach(select => {
+        select.addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            if (selectedOption && selectedOption.value) {
+                showVoiceInfo(selectedOption);
+            }
+        });
+        
+        // Add search functionality
+        addVoiceSearch(select);
     });
     
-    // Add search functionality
-    addVoiceSearch(voiceSelect);
+    // Load voices dynamically if API is available
+    loadVoicesDynamically();
+}
+
+function loadVoicesDynamically() {
+    fetch('/api/voices')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.voices && data.voices.length > 0) {
+                updateVoiceOptions(data.voices);
+            }
+        })
+        .catch(error => {
+            console.log('Using fallback voices:', error);
+            // Fallback voices are already loaded from the template
+        });
+}
+
+function updateVoiceOptions(voices) {
+    const voiceSelects = document.querySelectorAll('select[name="voice1"], select[name="voice2"]');
+    
+    voiceSelects.forEach(select => {
+        // Clear existing options except the first one
+        const firstOption = select.querySelector('option[value=""]');
+        select.innerHTML = '';
+        if (firstOption) {
+            select.appendChild(firstOption);
+        }
+        
+        // Add voices grouped by language
+        const groupedVoices = groupVoicesByLanguage(voices);
+        
+        Object.keys(groupedVoices).sort().forEach(language => {
+            const optgroup = document.createElement('optgroup');
+            optgroup.label = capitalizeFirst(language);
+            
+            groupedVoices[language].forEach(voice => {
+                const option = document.createElement('option');
+                option.value = voice.id;
+                option.textContent = `${voice.name} (${capitalizeFirst(voice.gender)})`;
+                option.dataset.language = voice.language;
+                option.dataset.gender = voice.gender;
+                option.dataset.accent = voice.accent;
+                option.dataset.description = voice.description;
+                
+                optgroup.appendChild(option);
+            });
+            
+            select.appendChild(optgroup);
+        });
+    });
+}
+
+function groupVoicesByLanguage(voices) {
+    const grouped = {};
+    
+    voices.forEach(voice => {
+        const language = voice.language || 'other';
+        if (!grouped[language]) {
+            grouped[language] = [];
+        }
+        grouped[language].push(voice);
+    });
+    
+    // Sort voices within each language by name
+    Object.keys(grouped).forEach(language => {
+        grouped[language].sort((a, b) => a.name.localeCompare(b.name));
+    });
+    
+    return grouped;
+}
+
+function capitalizeFirst(str) {
+    if (!str) return '';
+    return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
 function showVoiceInfo(option) {
-    const language = option.getAttribute('data-language');
-    const gender = option.getAttribute('data-gender');
-    const accent = option.getAttribute('data-accent');
+    const voiceId = option.value;
+    const voiceName = option.textContent;
+    const language = option.dataset.language || '';
+    const gender = option.dataset.gender || '';
+    const accent = option.dataset.accent || '';
+    const description = option.dataset.description || '';
     
-    let infoHtml = '<div class="voice-info mt-2 p-2 bg-light rounded"><small>';
-    if (language) infoHtml += `<strong>Language:</strong> ${language} `;
-    if (gender) infoHtml += `<strong>Gender:</strong> ${gender} `;
-    if (accent) infoHtml += `<strong>Accent:</strong> ${accent}`;
-    infoHtml += '</small></div>';
+    // Create or update voice info display
+    const selectContainer = option.closest('.col-md-6');
+    let infoDiv = selectContainer.querySelector('.voice-info');
     
-    // Remove existing info
-    const existingInfo = document.querySelector('.voice-info');
-    if (existingInfo) existingInfo.remove();
+    if (!infoDiv) {
+        infoDiv = document.createElement('div');
+        infoDiv.className = 'voice-info mt-2 p-2 bg-light rounded';
+        selectContainer.appendChild(infoDiv);
+    }
     
-    // Add new info
-    const voiceContainer = document.getElementById('voice').parentNode;
-    voiceContainer.insertAdjacentHTML('beforeend', infoHtml);
+    infoDiv.innerHTML = `
+        <small class="text-muted">
+            <strong>${voiceName}</strong><br>
+            ${language ? `Language: ${capitalizeFirst(language)}` : ''}
+            ${gender ? `<br>Gender: ${capitalizeFirst(gender)}` : ''}
+            ${accent ? `<br>Accent: ${capitalizeFirst(accent)}` : ''}
+            ${description ? `<br><em>${description}</em>` : ''}
+        </small>
+    `;
 }
 
 function addVoiceSearch(selectElement) {
+    const container = selectElement.parentElement;
     const searchInput = document.createElement('input');
     searchInput.type = 'text';
-    searchInput.className = 'form-control mb-2';
-    searchInput.placeholder = 'Search voices by name, language, or gender...';
+    searchInput.className = 'form-control form-control-sm mb-2';
+    searchInput.placeholder = 'Search voices...';
     
-    selectElement.parentNode.insertBefore(searchInput, selectElement);
+    container.insertBefore(searchInput, selectElement);
     
     searchInput.addEventListener('input', function() {
         const searchTerm = this.value.toLowerCase();
         const options = selectElement.querySelectorAll('option');
+        const optgroups = selectElement.querySelectorAll('optgroup');
         
         options.forEach(option => {
-            if (option.value === '') return; // Keep the default option
+            if (option.value === '') return; // Skip empty option
             
-            const text = option.textContent.toLowerCase();
-            const language = (option.getAttribute('data-language') || '').toLowerCase();
-            const gender = (option.getAttribute('data-gender') || '').toLowerCase();
-            const accent = (option.getAttribute('data-accent') || '').toLowerCase();
+            const optionText = option.textContent.toLowerCase();
+            const language = (option.dataset.language || '').toLowerCase();
+            const gender = (option.dataset.gender || '').toLowerCase();
+            const accent = (option.dataset.accent || '').toLowerCase();
+            const description = (option.dataset.description || '').toLowerCase();
             
-            const matches = text.includes(searchTerm) || 
+            const matches = optionText.includes(searchTerm) || 
                           language.includes(searchTerm) || 
                           gender.includes(searchTerm) || 
-                          accent.includes(searchTerm);
+                          accent.includes(searchTerm) ||
+                          description.includes(searchTerm);
             
-            option.style.display = matches ? 'block' : 'none';
+            option.style.display = matches ? '' : 'none';
+        });
+        
+        // Hide empty optgroups
+        optgroups.forEach(optgroup => {
+            const visibleOptions = Array.from(optgroup.querySelectorAll('option')).filter(option => 
+                option.style.display !== 'none'
+            );
+            optgroup.style.display = visibleOptions.length > 0 ? '' : 'none';
         });
     });
 }
