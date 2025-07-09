@@ -73,10 +73,14 @@ Make the conversation feel authentic and engaging, like real podcast hosts discu
             # Convert to the format needed for Play HT dual-voice generation
             full_script = self._format_script_for_tts(script_data)
             
+            # Get token usage from the response
+            tokens_used = response.usage.total_tokens if hasattr(response, 'usage') else 0
+            
             return {
                 'success': True,
                 'script': full_script,
-                'raw_data': script_data
+                'raw_data': script_data,
+                'tokens_used': tokens_used
             }
             
         except Exception as e:
@@ -86,7 +90,8 @@ Make the conversation feel authentic and engaging, like real podcast hosts discu
             return {
                 'success': True,
                 'script': fallback_script,
-                'raw_data': {'fallback': True}
+                'raw_data': {'fallback': True},
+                'tokens_used': 0  # No tokens used for fallback
             }
     
     def _generate_fallback_script(self, title, description):
@@ -152,6 +157,7 @@ Jordan: Thanks for listening, and we'll see you in the next episode!"""
             # Parse script into segments
             segments = self._parse_script_segments(script_content)
             audio_segments = []
+            total_characters = 0  # Track total characters for token estimation
             
             logging.info(f"Processing {len(segments)} segments for TTS")
             
@@ -166,6 +172,8 @@ Jordan: Thanks for listening, and we'll see you in the next episode!"""
                 # Truncate very long segments to prevent timeouts
                 if len(text) > 4000:  # OpenAI TTS limit is 4096 characters
                     text = text[:4000] + "..."
+                
+                total_characters += len(text)
                 
                 logging.info(f"Generating audio for segment {i+1}/{len(segments)} with {voice} voice")
                 
@@ -209,11 +217,17 @@ Jordan: Thanks for listening, and we'll see you in the next episode!"""
             with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as tmp_file:
                 combined_audio.export(tmp_file.name, format="mp3")
                 
+                # Estimate tokens used for TTS (OpenAI TTS pricing is character-based)
+                # For tracking purposes, we'll use character count as "tokens"
+                tokens_used = total_characters
+                
                 logging.info(f"Audio generation completed: {tmp_file.name}")
                 return {
                     'success': True,
                     'audio_file': tmp_file.name,
-                    'duration': len(combined_audio) / 1000  # duration in seconds
+                    'duration': len(combined_audio) / 1000,  # duration in seconds
+                    'tokens_used': tokens_used,
+                    'file_size_mb': round(len(combined_audio.raw_data) / (1024 * 1024), 2)
                 }
                 
         except Exception as e:

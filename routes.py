@@ -2,13 +2,15 @@ from flask import render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from app import app, db
-from models import User, Podcast
+from models import User, Podcast, GeneratedPodcast, Usage
 from playht_service import PlayHTService
 from openai_service import OpenAIService
+from usage_tracker import UsageTracker
 import logging
 
 playht_service = PlayHTService()
 openai_service = OpenAIService()
+usage_tracker = UsageTracker()
 
 @app.route('/')
 def home():
@@ -92,7 +94,11 @@ def logout():
 @app.route('/generator')
 @login_required
 def generator():
-    user_podcasts = Podcast.query.filter_by(user_id=current_user.id).order_by(Podcast.created_at.desc()).all()
+    # Get user's generated podcasts (new table)
+    user_podcasts = GeneratedPodcast.query.filter_by(user_id=current_user.id).order_by(GeneratedPodcast.created_at.desc()).all()
+    
+    # Get usage statistics
+    usage_stats = usage_tracker.check_usage_limits(current_user.id)
     
     # Get available voices from Play HT
     available_voices = playht_service.get_voices()
@@ -170,7 +176,7 @@ def generator():
             }
         ]
     
-    return render_template('generator_openai.html', podcasts=user_podcasts)
+    return render_template('generator_openai.html', podcasts=user_podcasts, usage_stats=usage_stats)
 
 @app.route('/generate-podcast', methods=['POST'])
 @login_required
@@ -185,43 +191,44 @@ def generate_podcast():
         flash('Title, description, script content, and both voice selections are required.', 'error')
         return redirect(url_for('generator'))
     
+    # Check usage limits before processing
+    usage_limits = usage_tracker.check_usage_limits(current_user.id)
+    if usage_limits.get('error'):
+        flash('Unable to verify usage limits. Please try again.', 'error')
+        return redirect(url_for('generator'))
+    
+    if not usage_limits.get('can_generate_audio'):
+        if usage_limits.get('podcasts_remaining', 0) <= 0:
+            flash(f'Daily podcast limit reached ({usage_limits.get("daily_podcasts_limit", 0)}). Upgrade your plan for more podcasts.', 'warning')
+        else:
+            flash(f'Monthly token limit reached ({usage_limits.get("monthly_tokens_limit", 0)}). Upgrade your plan for more tokens.', 'warning')
+        return redirect(url_for('generator'))
+    
     try:
         # Use the provided script content directly (user formats it with Host 1:/Host 2:)
         logging.info(f"Processing podcast script for: {title}")
-        
-        # Format the script to use proper speaker labels for PlayHT API
-        formatted_script = content.replace("Host 1:", "Alex:").replace("Host 2:", "Jordan:")
-        
-        # Create podcast record with the user's script
-        podcast = Podcast(
-            title=title,
-            description=description,
-            content=content,  # Store original content with Host 1/Host 2 labels
-            user_id=current_user.id,
-            status='processing'
-        )
-        
-        db.session.add(podcast)
-        db.session.commit()
-        
-        # Generate audio using OpenAI TTS with dual voices
-        logging.info(f"Generating audio with OpenAI TTS")
-        
-        # Map PlayHT voice IDs to OpenAI TTS voices
-        openai_voices = {
-            'alloy': 'alloy',
-            'echo': 'echo', 
-            'fable': 'fable',
-            'onyx': 'onyx',
-            'nova': 'nova',
-            'shimmer': 'shimmer'
-        }
         
         # Use selected OpenAI voices
         host1_voice = voice1 if voice1 in ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'] else 'alloy'
         host2_voice = voice2 if voice2 in ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'] else 'echo'
         
-        # For now, let's create a text-only version first to test the workflow
+        # Create new GeneratedPodcast record
+        generated_podcast = GeneratedPodcast(
+            title=title,
+            description=description,
+            content=content,  # Store original content with Host 1/Host 2 labels
+            user_id=current_user.id,
+            voice_1=host1_voice,
+            voice_2=host2_voice,
+            status='processing'
+        )
+        
+        db.session.add(generated_podcast)
+        db.session.commit()
+        
+        # Generate audio using OpenAI TTS with dual voices
+        logging.info(f"Generating audio with OpenAI TTS")
+        
         if openai_service.client:
             audio_result = openai_service.generate_dual_voice_audio(
                 script_content=content,
@@ -234,7 +241,7 @@ def generate_podcast():
                 import shutil
                 import os
                 import time
-                audio_filename = f"podcast_{podcast.id}_{int(time.time())}.mp3"
+                audio_filename = f"podcast_{generated_podcast.id}_{int(time.time())}.mp3"
                 audio_path = os.path.join('static', 'audio', audio_filename)
                 
                 # Create audio directory if it doesn't exist
@@ -243,16 +250,30 @@ def generate_podcast():
                 # Move temp file to static directory
                 shutil.move(audio_result['audio_file'], audio_path)
                 
-                podcast.audio_url = f'/static/audio/{audio_filename}'
-                podcast.status = 'completed'
+                # Update podcast record with audio info
+                generated_podcast.audio_url = f'/static/audio/{audio_filename}'
+                generated_podcast.duration_seconds = int(audio_result.get('duration', 0))
+                generated_podcast.file_size_mb = audio_result.get('file_size_mb', 0)
+                generated_podcast.tokens_used = audio_result.get('tokens_used', 0)
+                generated_podcast.status = 'completed'
+                
+                # Track TTS usage
+                usage_tracker.track_usage(
+                    user_id=current_user.id,
+                    feature_type='tts_generation',
+                    tokens_used=audio_result.get('tokens_used', 0),
+                    request_type='tts-1'
+                )
+                
                 flash(f'Podcast "{title}" generated successfully using OpenAI TTS!', 'success')
             else:
-                podcast.status = 'failed'
+                generated_podcast.status = 'failed'
+                generated_podcast.error_message = audio_result.get('error', 'Unknown error')
                 error_message = audio_result.get('error', 'Unknown error')
                 flash(f'Failed to generate audio: {error_message}. Your script has been saved and you can retry later.', 'warning')
         else:
             # OpenAI not available - save as text-only
-            podcast.status = 'completed'
+            generated_podcast.status = 'completed'
             flash(f'Podcast "{title}" saved as text! Audio generation requires OpenAI API key.', 'info')
         
         db.session.commit()
@@ -267,13 +288,24 @@ def generate_podcast():
 @app.route('/podcast/<int:podcast_id>')
 @login_required
 def view_podcast(podcast_id):
-    podcast = Podcast.query.filter_by(id=podcast_id, user_id=current_user.id).first_or_404()
+    # Try to get from GeneratedPodcast table first (new format)
+    podcast = GeneratedPodcast.query.filter_by(id=podcast_id, user_id=current_user.id).first()
+    
+    # If not found, try legacy Podcast table
+    if not podcast:
+        podcast = Podcast.query.filter_by(id=podcast_id, user_id=current_user.id).first_or_404()
+    
     return render_template('podcast_detail.html', podcast=podcast)
 
 @app.route('/delete-podcast/<int:podcast_id>', methods=['POST'])
 @login_required
 def delete_podcast(podcast_id):
-    podcast = Podcast.query.filter_by(id=podcast_id, user_id=current_user.id).first_or_404()
+    # Try to get from GeneratedPodcast table first (new format)
+    podcast = GeneratedPodcast.query.filter_by(id=podcast_id, user_id=current_user.id).first()
+    
+    # If not found, try legacy Podcast table
+    if not podcast:
+        podcast = Podcast.query.filter_by(id=podcast_id, user_id=current_user.id).first_or_404()
     
     try:
         db.session.delete(podcast)
@@ -285,6 +317,20 @@ def delete_podcast(podcast_id):
         flash('An error occurred while deleting the podcast.', 'error')
     
     return redirect(url_for('generator'))
+
+@app.route('/usage-stats')
+@login_required
+def usage_stats():
+    """Display user usage statistics and limits"""
+    stats = usage_tracker.get_usage_summary(current_user.id)
+    return render_template('usage_stats.html', stats=stats)
+
+@app.route('/api/usage')
+@login_required
+def get_usage_api():
+    """API endpoint to get user usage statistics"""
+    stats = usage_tracker.check_usage_limits(current_user.id)
+    return jsonify(stats)
 
 @app.route('/api/voices')
 @login_required
