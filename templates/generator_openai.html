@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+
+{% block title %}AI Podcast Generator{% endblock %}
+
+{% block content %}
+<section class="generator-section py-5">
+    <div class="container">
+        <div class="row">
+            <!-- Generator Form -->
+            <div class="col-lg-8">
+                <div class="generator-card">
+                    <div class="card-header">
+                        <h2 class="card-title">
+                            <i class="fas fa-microphone me-2"></i>
+                            Generate New Podcast
+                        </h2>
+                        <p class="card-subtitle">
+                            Enter your content below and let AI create a professional podcast for you
+                        </p>
+                    </div>
+                    
+                    <form method="POST" action="{{ url_for('generate_podcast') }}" class="generator-form">
+                        <div class="mb-4">
+                            <label for="title" class="form-label fw-semibold">Podcast Title</label>
+                            <input type="text" class="form-control form-control-lg" id="title" name="title" 
+                                   placeholder="Enter a compelling title for your podcast" required>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label for="description" class="form-label fw-semibold">Topic Description</label>
+                            <textarea class="form-control" id="description" name="description" rows="3"
+                                      placeholder="Describe the topic you want the AI hosts to discuss" required></textarea>
+                            <div class="form-text">
+                                AI will generate a natural conversation between two hosts based on this description
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label for="content" class="form-label fw-semibold">
+                                <i class="fas fa-comments me-2"></i>Podcast Script
+                            </label>
+                            <textarea class="form-control" id="content" name="content" rows="12"
+                                      placeholder="Host 1: Welcome to The Tech Tomorrow Podcast! Today we're diving into the fascinating world of voice AI and what the future holds.
+Host 2: And what a topic this is. The technology has come so far from those early days of basic voice commands.
+Host 1: Remember when we thought it was revolutionary just to ask our phones to set a timer?
+Host 2: Now we're having full conversations with AI that can understand context, emotion, and even cultural nuances. It's incredible.
+Host 1: Though it does raise some interesting questions about privacy and ethics. Where do we draw the line?
+Host 2: Exactly. The potential benefits for accessibility and education are huge, but we need to be thoughtful about implementation.
+Host 1: Well, we'll be exploring all of these aspects today. Stay with us as we break down the future of voice AI." required></textarea>
+                            <div class="form-text">
+                                <strong>Format:</strong> Use "Host 1:" and "Host 2:" to separate speakers. Each line should start with the speaker label followed by their dialogue. This ensures proper voice switching in the generated audio.
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold">
+                                <i class="fas fa-users me-2"></i>Host Voices
+                            </label>
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle"></i>
+                                <strong>AI-Powered Audio:</strong> Your podcasts are generated using OpenAI's advanced text-to-speech technology with natural-sounding voices for each host.
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <label for="voice1" class="form-label text-muted">Host 1 (Alex - Curious & Enthusiastic)</label>
+                                    <select class="form-control" id="voice1" name="voice1" required>
+                                        <option value="alloy">Alloy - Warm, friendly voice</option>
+                                        <option value="echo">Echo - Clear, professional voice</option>
+                                        <option value="fable">Fable - Expressive, engaging voice</option>
+                                        <option value="onyx">Onyx - Deep, confident voice</option>
+                                        <option value="nova">Nova - Bright, energetic voice</option>
+                                        <option value="shimmer">Shimmer - Soft, pleasant voice</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="voice2" class="form-label text-muted">Host 2 (Jordan - Knowledgeable & Thoughtful)</label>
+                                    <select class="form-control" id="voice2" name="voice2" required>
+                                        <option value="echo">Echo - Clear, professional voice</option>
+                                        <option value="alloy">Alloy - Warm, friendly voice</option>
+                                        <option value="fable">Fable - Expressive, engaging voice</option>
+                                        <option value="onyx">Onyx - Deep, confident voice</option>
+                                        <option value="nova">Nova - Bright, energetic voice</option>
+                                        <option value="shimmer">Shimmer - Soft, pleasant voice</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-text">
+                                <i class="fas fa-microphone me-1"></i>
+                                Choose from OpenAI's collection of professional AI voices with different tones and characteristics.
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary-custom btn-lg">
+                                <i class="fas fa-comments me-2"></i>
+                                Generate Conversational Podcast
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Sidebar -->
+            <div class="col-lg-4">
+                <div class="sidebar-card">
+                    <h3 class="sidebar-title">
+                        <i class="fas fa-lightbulb me-2"></i>
+                        Pro Tips
+                    </h3>
+                    <ul class="tips-list">
+                        <li>
+                            <i class="fas fa-check text-primary-custom me-2"></i>
+                            Provide clear, specific topic descriptions for better AI conversations
+                        </li>
+                        <li>
+                            <i class="fas fa-check text-primary-custom me-2"></i>
+                            Choose contrasting voices (male/female) for distinct hosts
+                        </li>
+                        <li>
+                            <i class="fas fa-check text-primary-custom me-2"></i>
+                            AI generates natural dialogue with intro, discussion, and outro
+                        </li>
+                        <li>
+                            <i class="fas fa-check text-primary-custom me-2"></i>
+                            Each podcast features two unique host personalities
+                        </li>
+                    </ul>
+                </div>
+                
+                <div class="sidebar-card mt-4">
+                    <h3 class="sidebar-title">
+                        <i class="fas fa-chart-line me-2"></i>
+                        Your Stats
+                    </h3>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <h4 class="stat-number">{{ podcasts|length }}</h4>
+                            <p class="stat-label">Total Podcasts</p>
+                        </div>
+                        <div class="stat-item">
+                            <h4 class="stat-number">{{ podcasts|selectattr('status', 'equalto', 'completed')|list|length }}</h4>
+                            <p class="stat-label">Completed</p>
+                        </div>
+                    </div>
+                </div>
+                
+                {% if podcasts %}
+                <div class="sidebar-card mt-4">
+                    <h3 class="sidebar-title">
+                        <i class="fas fa-history me-2"></i>
+                        Recent Podcasts
+                    </h3>
+                    <div class="recent-podcasts">
+                        {% for podcast in podcasts[:3] %}
+                        <div class="podcast-item">
+                            <div class="podcast-info">
+                                <h5 class="podcast-title">{{ podcast.title }}</h5>
+                                <p class="podcast-date">{{ podcast.created_at.strftime('%B %d, %Y') }}</p>
+                                <span class="badge badge-status-{{ podcast.status }}">{{ podcast.status.title() }}</span>
+                            </div>
+                            <div class="podcast-actions">
+                                <a href="{{ url_for('view_podcast', podcast_id=podcast.id) }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-play"></i>
+                                </a>
+                                <form method="POST" action="{{ url_for('delete_podcast', podcast_id=podcast.id) }}" class="d-inline">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to delete this podcast?')">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

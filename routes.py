@@ -170,7 +170,7 @@ def generator():
             }
         ]
     
-    return render_template('generator.html', podcasts=user_podcasts, voices=available_voices)
+    return render_template('generator_openai.html', podcasts=user_podcasts)
 
 @app.route('/generate-podcast', methods=['POST'])
 @login_required
@@ -204,29 +204,50 @@ def generate_podcast():
         db.session.add(podcast)
         db.session.commit()
         
-        # Generate audio using Play HT with dual voices
-        logging.info(f"Generating audio with voices: {voice1}, {voice2}")
-        audio_result = playht_service.generate_audio(
-            text=formatted_script,
-            voice1=voice1,
-            voice2=voice2,
-            turn_prefix="Alex:",
-            turn_prefix2="Jordan:"
+        # Generate audio using OpenAI TTS with dual voices
+        logging.info(f"Generating audio with OpenAI TTS")
+        
+        # Map PlayHT voice IDs to OpenAI TTS voices
+        openai_voices = {
+            'alloy': 'alloy',
+            'echo': 'echo', 
+            'fable': 'fable',
+            'onyx': 'onyx',
+            'nova': 'nova',
+            'shimmer': 'shimmer'
+        }
+        
+        # Use selected OpenAI voices
+        host1_voice = voice1 if voice1 in ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'] else 'alloy'
+        host2_voice = voice2 if voice2 in ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'] else 'echo'
+        
+        audio_result = openai_service.generate_dual_voice_audio(
+            script_content=content,
+            host1_voice=host1_voice,
+            host2_voice=host2_voice
         )
         
         if audio_result.get('success'):
-            podcast.audio_url = audio_result.get('audio_url')
-            podcast.playht_job_id = audio_result.get('job_id')
+            # Save audio file to static directory
+            import shutil
+            import os
+            import time
+            audio_filename = f"podcast_{podcast.id}_{int(time.time())}.mp3"
+            audio_path = os.path.join('static', 'audio', audio_filename)
+            
+            # Create audio directory if it doesn't exist
+            os.makedirs(os.path.dirname(audio_path), exist_ok=True)
+            
+            # Move temp file to static directory
+            shutil.move(audio_result['audio_file'], audio_path)
+            
+            podcast.audio_url = f'/static/audio/{audio_filename}'
             podcast.status = 'completed'
-            flash('Conversational podcast generated successfully!', 'success')
+            flash(f'Podcast "{title}" generated successfully using OpenAI TTS!', 'success')
         else:
             podcast.status = 'failed'
             error_message = audio_result.get('error', 'Unknown error')
-            
-            if 'API access is not available' in error_message:
-                flash('PlayHT API access requires a paid plan. Please upgrade at https://play.ai/pricing to enable podcast generation.', 'warning')
-            else:
-                flash(f'Failed to generate audio: {error_message}', 'error')
+            flash(f'Failed to generate audio: {error_message}', 'error')
         
         db.session.commit()
         

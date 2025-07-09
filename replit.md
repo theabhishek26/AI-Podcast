@@ -83,10 +83,16 @@ Preferred communication style: Simple, everyday language.
 
 ## API Requirements
 
-### PlayHT API Access
-- **Voice Loading**: Works with free plan (256 voices available)
-- **Audio Generation**: Requires paid plan for actual podcast creation
-- **Upgrade**: Visit https://play.ai/pricing to enable TTS functionality
+### OpenAI API Access
+- **Script Generation**: Uses GPT-4o for natural conversation generation
+- **Audio Generation**: Uses OpenAI TTS-1 model with 6 voice options
+- **Voice Options**: alloy, echo, fable, onyx, nova, shimmer
+- **Cost**: Pay-per-use model, much more affordable than PlayHT
+
+### Previous PlayHT Integration
+- **Status**: Replaced with OpenAI TTS due to paid plan requirements
+- **Voice Loading**: Previously worked with free plan (256 voices)
+- **Audio Generation**: Required paid plan, now replaced with OpenAI
 
 ## Changelog
 
@@ -95,3 +101,4 @@ Changelog:
 - July 09, 2025. Updated PlayHT API integration to use v1 endpoints as per official documentation. Added dynamic voice loading with proper language grouping and search functionality. Enhanced voice selection UI with descriptions and language filtering.
 - July 09, 2025. Added PostgreSQL database with proper environment variables. Database is now connected and ready for production use.
 - July 09, 2025. Implemented complete PlayHT v1 API integration with dual-voice dialogue support using PlayDialog model. Added comprehensive error handling and proper job polling. Voice selection works with 256 real voices, but audio generation requires paid plan upgrade.
+- July 09, 2025. **MAJOR UPDATE**: Replaced PlayHT with OpenAI TTS due to paid plan limitations. Implemented complete OpenAI TTS integration with dual-voice support, 6 voice options, and proper audio file handling. System now fully functional with structured Host 1:/Host 2: dialogue format.

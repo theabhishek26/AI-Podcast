@@ -1,7 +1,10 @@
 import os
 import json
 import logging
+import tempfile
 from openai import OpenAI
+from pydub import AudioSegment
+import io
 
 class OpenAIService:
     def __init__(self):
@@ -134,3 +137,80 @@ Jordan: Thanks for listening, and we'll see you in the next episode!"""
             full_text += script_data['outro']
         
         return full_text.strip()
+    
+    def generate_dual_voice_audio(self, script_content, host1_voice="alloy", host2_voice="echo"):
+        """
+        Generate dual-voice audio using OpenAI's TTS API
+        """
+        if not self.client:
+            return {
+                'success': False,
+                'error': 'OpenAI API key not configured'
+            }
+        
+        try:
+            # Parse script into segments
+            segments = self._parse_script_segments(script_content)
+            audio_segments = []
+            
+            for segment in segments:
+                voice = host1_voice if segment['speaker'] == 'Host 1' else host2_voice
+                
+                # Generate audio for this segment
+                response = self.client.audio.speech.create(
+                    model="tts-1",
+                    voice=voice,
+                    input=segment['text'],
+                    response_format="mp3"
+                )
+                
+                # Convert to audio segment
+                audio_data = io.BytesIO(response.content)
+                audio_segment = AudioSegment.from_mp3(audio_data)
+                
+                # Add slight pause between speakers
+                if audio_segments:
+                    pause = AudioSegment.silent(duration=500)  # 500ms pause
+                    audio_segments.append(pause)
+                
+                audio_segments.append(audio_segment)
+            
+            # Combine all segments
+            combined_audio = sum(audio_segments)
+            
+            # Export to temporary file
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as tmp_file:
+                combined_audio.export(tmp_file.name, format="mp3")
+                
+                return {
+                    'success': True,
+                    'audio_file': tmp_file.name,
+                    'duration': len(combined_audio) / 1000  # duration in seconds
+                }
+                
+        except Exception as e:
+            logging.error(f"OpenAI TTS error: {e}")
+            return {
+                'success': False,
+                'error': f'Failed to generate audio: {str(e)}'
+            }
+    
+    def _parse_script_segments(self, script_content):
+        """Parse script content into speaker segments"""
+        segments = []
+        lines = script_content.strip().split('\n')
+        
+        for line in lines:
+            line = line.strip()
+            if line.startswith('Host 1:'):
+                segments.append({
+                    'speaker': 'Host 1',
+                    'text': line[7:].strip()  # Remove "Host 1:" prefix
+                })
+            elif line.startswith('Host 2:'):
+                segments.append({
+                    'speaker': 'Host 2',
+                    'text': line[7:].strip()  # Remove "Host 2:" prefix
+                })
+        
+        return segments

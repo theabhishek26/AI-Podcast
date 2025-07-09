@@ -1,8 +1,8 @@
-modules = ["web", "python-3.11", "nodejs-20", "postgresql-16"]
+modules = ["web", "python-3.11", "nodejs-20", "postgresql-16", "python3"]
 
 [nix]
 channel = "stable-24_05"
-packages = ["openssl", "postgresql"]
+packages = ["ffmpeg-full", "openssl", "postgresql"]
 
 [deployment]
 deploymentTarget = "autoscale"
