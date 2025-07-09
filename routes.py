@@ -221,33 +221,39 @@ def generate_podcast():
         host1_voice = voice1 if voice1 in ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'] else 'alloy'
         host2_voice = voice2 if voice2 in ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'] else 'echo'
         
-        audio_result = openai_service.generate_dual_voice_audio(
-            script_content=content,
-            host1_voice=host1_voice,
-            host2_voice=host2_voice
-        )
-        
-        if audio_result.get('success'):
-            # Save audio file to static directory
-            import shutil
-            import os
-            import time
-            audio_filename = f"podcast_{podcast.id}_{int(time.time())}.mp3"
-            audio_path = os.path.join('static', 'audio', audio_filename)
+        # For now, let's create a text-only version first to test the workflow
+        if openai_service.client:
+            audio_result = openai_service.generate_dual_voice_audio(
+                script_content=content,
+                host1_voice=host1_voice,
+                host2_voice=host2_voice
+            )
             
-            # Create audio directory if it doesn't exist
-            os.makedirs(os.path.dirname(audio_path), exist_ok=True)
-            
-            # Move temp file to static directory
-            shutil.move(audio_result['audio_file'], audio_path)
-            
-            podcast.audio_url = f'/static/audio/{audio_filename}'
-            podcast.status = 'completed'
-            flash(f'Podcast "{title}" generated successfully using OpenAI TTS!', 'success')
+            if audio_result.get('success'):
+                # Save audio file to static directory
+                import shutil
+                import os
+                import time
+                audio_filename = f"podcast_{podcast.id}_{int(time.time())}.mp3"
+                audio_path = os.path.join('static', 'audio', audio_filename)
+                
+                # Create audio directory if it doesn't exist
+                os.makedirs(os.path.dirname(audio_path), exist_ok=True)
+                
+                # Move temp file to static directory
+                shutil.move(audio_result['audio_file'], audio_path)
+                
+                podcast.audio_url = f'/static/audio/{audio_filename}'
+                podcast.status = 'completed'
+                flash(f'Podcast "{title}" generated successfully using OpenAI TTS!', 'success')
+            else:
+                podcast.status = 'failed'
+                error_message = audio_result.get('error', 'Unknown error')
+                flash(f'Failed to generate audio: {error_message}. Your script has been saved and you can retry later.', 'warning')
         else:
-            podcast.status = 'failed'
-            error_message = audio_result.get('error', 'Unknown error')
-            flash(f'Failed to generate audio: {error_message}', 'error')
+            # OpenAI not available - save as text-only
+            podcast.status = 'completed'
+            flash(f'Podcast "{title}" saved as text! Audio generation requires OpenAI API key.', 'info')
         
         db.session.commit()
         

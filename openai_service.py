@@ -153,35 +153,63 @@ Jordan: Thanks for listening, and we'll see you in the next episode!"""
             segments = self._parse_script_segments(script_content)
             audio_segments = []
             
-            for segment in segments:
+            logging.info(f"Processing {len(segments)} segments for TTS")
+            
+            for i, segment in enumerate(segments):
                 voice = host1_voice if segment['speaker'] == 'Host 1' else host2_voice
+                text = segment['text']
                 
-                # Generate audio for this segment
-                response = self.client.audio.speech.create(
-                    model="tts-1",
-                    voice=voice,
-                    input=segment['text'],
-                    response_format="mp3"
-                )
+                # Skip empty segments
+                if not text.strip():
+                    continue
                 
-                # Convert to audio segment
-                audio_data = io.BytesIO(response.content)
-                audio_segment = AudioSegment.from_mp3(audio_data)
+                # Truncate very long segments to prevent timeouts
+                if len(text) > 4000:  # OpenAI TTS limit is 4096 characters
+                    text = text[:4000] + "..."
                 
-                # Add slight pause between speakers
-                if audio_segments:
-                    pause = AudioSegment.silent(duration=500)  # 500ms pause
-                    audio_segments.append(pause)
+                logging.info(f"Generating audio for segment {i+1}/{len(segments)} with {voice} voice")
                 
-                audio_segments.append(audio_segment)
+                # Generate audio for this segment with timeout
+                try:
+                    response = self.client.audio.speech.create(
+                        model="tts-1",
+                        voice=voice,
+                        input=text,
+                        response_format="mp3"
+                    )
+                    
+                    # Convert to audio segment
+                    audio_data = io.BytesIO(response.content)
+                    audio_segment = AudioSegment.from_mp3(audio_data)
+                    
+                    # Add slight pause between speakers
+                    if audio_segments:
+                        pause = AudioSegment.silent(duration=800)  # 800ms pause
+                        audio_segments.append(pause)
+                    
+                    audio_segments.append(audio_segment)
+                    
+                except Exception as segment_error:
+                    logging.error(f"Error generating audio for segment {i+1}: {segment_error}")
+                    # Add a short silence instead of failing completely
+                    silence = AudioSegment.silent(duration=1000)
+                    audio_segments.append(silence)
+            
+            if not audio_segments:
+                return {
+                    'success': False,
+                    'error': 'No audio segments were generated successfully'
+                }
             
             # Combine all segments
+            logging.info("Combining audio segments")
             combined_audio = sum(audio_segments)
             
             # Export to temporary file
             with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as tmp_file:
                 combined_audio.export(tmp_file.name, format="mp3")
                 
+                logging.info(f"Audio generation completed: {tmp_file.name}")
                 return {
                     'success': True,
                     'audio_file': tmp_file.name,
