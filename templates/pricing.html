@@ -1,0 +1,426 @@
+{% extends "base.html" %}
+
+{% block title %}Pricing Plans{% endblock %}
+
+{% block content %}
+<section class="pricing-section py-5">
+    <div class="container">
+        <div class="row mb-5">
+            <div class="col-12 text-center">
+                <h1 class="display-4 mb-3">
+                    <i class="fas fa-credit-card me-3"></i>
+                    Choose Your Plan
+                </h1>
+                <p class="lead text-muted">Upgrade your podcast creation experience with more tokens and features</p>
+            </div>
+        </div>
+        
+        <!-- Current Usage Stats -->
+        <div class="row mb-5">
+            <div class="col-md-8 mx-auto">
+                <div class="usage-stats-card">
+                    <h3 class="text-center mb-4">
+                        <i class="fas fa-chart-line me-2"></i>
+                        Your Current Usage
+                    </h3>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="stat-item">
+                                <h4 class="stat-number">{{ usage_stats.plan_status.title() }}</h4>
+                                <p class="stat-label">Current Plan</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="stat-item">
+                                <h4 class="stat-number">{{ "{:,}".format(usage_stats.tokens_remaining) }}</h4>
+                                <p class="stat-label">Tokens Remaining</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="stat-item">
+                                <h4 class="stat-number">{{ usage_stats.podcasts_remaining }}</h4>
+                                <p class="stat-label">Podcasts Left Today</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="usage-progress mt-4">
+                        {% set tokens_used = usage_stats.monthly_tokens_limit - usage_stats.tokens_remaining %}
+                        {% set usage_percent = (tokens_used / usage_stats.monthly_tokens_limit * 100) if usage_stats.monthly_tokens_limit > 0 else 0 %}
+                        <div class="progress-header">
+                            <span>Monthly Token Usage</span>
+                            <span>{{ "{:,}".format(tokens_used) }} / {{ "{:,}".format(usage_stats.monthly_tokens_limit) }}</span>
+                        </div>
+                        <div class="progress">
+                            <div class="progress-bar" role="progressbar" style="width: {{ usage_percent }}%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pricing Plans -->
+        <div class="row">
+            {% for plan_key, plan in plans.items() %}
+            <div class="col-lg-4 mb-4">
+                <div class="pricing-card {{ 'current-plan' if plan_key == current_plan else '' }} {{ 'featured' if plan_key == 'pro' else '' }}">
+                    {% if plan_key == 'pro' %}
+                    <div class="badge-featured">Most Popular</div>
+                    {% endif %}
+                    
+                    <div class="plan-header">
+                        <h3 class="plan-name">{{ plan.name }}</h3>
+                        <div class="plan-price">
+                            {% if plan.price == 0 %}
+                                <span class="price-amount">Free</span>
+                            {% else %}
+                                <span class="price-currency">$</span>
+                                <span class="price-amount">{{ "%.0f"|format(plan.price) }}</span>
+                                <span class="price-period">/month</span>
+                            {% endif %}
+                        </div>
+                        <p class="plan-description">{{ plan.description }}</p>
+                    </div>
+                    
+                    <div class="plan-features">
+                        <ul class="feature-list">
+                            <li>
+                                <i class="fas fa-coins me-2"></i>
+                                {{ "{:,}".format(plan.monthly_tokens) }} tokens/month
+                            </li>
+                            <li>
+                                <i class="fas fa-podcast me-2"></i>
+                                {{ plan.daily_podcasts }} podcasts/day
+                            </li>
+                            <li>
+                                <i class="fas fa-microphone me-2"></i>
+                                Dual-voice AI generation
+                            </li>
+                            <li>
+                                <i class="fas fa-download me-2"></i>
+                                High-quality MP3 downloads
+                            </li>
+                            {% if plan_key != 'free' %}
+                            <li>
+                                <i class="fas fa-crown me-2"></i>
+                                Priority support
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                    
+                    <div class="plan-action">
+                        {% if plan_key == current_plan %}
+                            <button class="btn btn-current disabled">Current Plan</button>
+                        {% elif plan_key == 'free' %}
+                            <a href="{{ url_for('pricing') }}" class="btn btn-outline">Free Plan</a>
+                        {% else %}
+                            <a href="{{ url_for('upgrade_plan', plan_type=plan_key) }}" class="btn btn-primary">
+                                Upgrade to {{ plan.name }}
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Token Packages -->
+        <div class="row mt-5">
+            <div class="col-12">
+                <h2 class="text-center mb-4">
+                    <i class="fas fa-plus-circle me-2"></i>
+                    Need More Tokens?
+                </h2>
+                <p class="text-center text-muted mb-4">Purchase additional tokens to extend your current plan</p>
+            </div>
+        </div>
+        
+        <div class="row">
+            {% set token_packages = [
+                {'tokens': 10000, 'price': 1.00, 'popular': False},
+                {'tokens': 25000, 'price': 2.00, 'popular': True},
+                {'tokens': 50000, 'price': 3.50, 'popular': False},
+                {'tokens': 100000, 'price': 6.00, 'popular': False}
+            ] %}
+            
+            {% for package in token_packages %}
+            <div class="col-md-3 mb-4">
+                <div class="token-package {{ 'popular' if package.popular else '' }}">
+                    {% if package.popular %}
+                    <div class="badge-popular">Best Value</div>
+                    {% endif %}
+                    
+                    <div class="package-header">
+                        <h4 class="package-tokens">{{ "{:,}".format(package.tokens) }}</h4>
+                        <p class="package-label">Tokens</p>
+                        <div class="package-price">
+                            <span class="price-currency">$</span>
+                            <span class="price-amount">{{ "%.0f"|format(package.price) }}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="package-action">
+                        <a href="{{ url_for('buy_tokens', token_amount=package.tokens) }}" class="btn btn-outline-primary">
+                            Buy Tokens
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<style>
+.pricing-section {
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    min-height: 100vh;
+}
+
+.usage-stats-card {
+    background: white;
+    border-radius: 12px;
+    padding: 2rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    margin-bottom: 2rem;
+}
+
+.stat-item {
+    text-align: center;
+    padding: 1rem;
+}
+
+.stat-number {
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--primary-color);
+    margin-bottom: 0.5rem;
+}
+
+.stat-label {
+    color: #666;
+    font-size: 0.9rem;
+    margin-bottom: 0;
+}
+
+.usage-progress {
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+.progress-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+    color: #666;
+}
+
+.progress {
+    height: 8px;
+    background-color: #e9ecef;
+    border-radius: 4px;
+}
+
+.progress-bar {
+    background: linear-gradient(90deg, #1db954 0%, #1ed760 100%);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+.pricing-card {
+    background: white;
+    border-radius: 12px;
+    padding: 2rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    position: relative;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    height: 100%;
+}
+
+.pricing-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.pricing-card.featured {
+    border: 2px solid var(--primary-color);
+    transform: scale(1.05);
+}
+
+.pricing-card.current-plan {
+    border: 2px solid #28a745;
+    background: linear-gradient(135deg, #f8fff8 0%, #e8f5e8 100%);
+}
+
+.badge-featured {
+    position: absolute;
+    top: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--primary-color);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+
+.plan-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.plan-name {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--primary-color);
+    margin-bottom: 1rem;
+}
+
+.plan-price {
+    margin-bottom: 1rem;
+}
+
+.price-currency {
+    font-size: 1.5rem;
+    vertical-align: top;
+    color: #666;
+}
+
+.price-amount {
+    font-size: 3rem;
+    font-weight: bold;
+    color: var(--primary-color);
+}
+
+.price-period {
+    font-size: 1rem;
+    color: #666;
+}
+
+.plan-description {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.feature-list {
+    list-style: none;
+    padding: 0;
+    margin-bottom: 2rem;
+}
+
+.feature-list li {
+    padding: 0.5rem 0;
+    color: #555;
+}
+
+.feature-list i {
+    color: var(--primary-color);
+}
+
+.plan-action {
+    text-align: center;
+    margin-top: auto;
+}
+
+.btn {
+    padding: 0.75rem 2rem;
+    border-radius: 25px;
+    font-weight: bold;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    display: inline-block;
+}
+
+.btn-primary {
+    background: var(--primary-color);
+    color: white;
+    border: none;
+}
+
+.btn-primary:hover {
+    background: #1ed760;
+    transform: translateY(-2px);
+}
+
+.btn-outline {
+    border: 2px solid #ddd;
+    color: #666;
+    background: transparent;
+}
+
+.btn-outline-primary {
+    border: 2px solid var(--primary-color);
+    color: var(--primary-color);
+    background: transparent;
+}
+
+.btn-outline-primary:hover {
+    background: var(--primary-color);
+    color: white;
+}
+
+.btn-current {
+    background: #28a745;
+    color: white;
+    border: none;
+}
+
+.token-package {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    text-align: center;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    position: relative;
+    transition: transform 0.3s ease;
+}
+
+.token-package:hover {
+    transform: translateY(-3px);
+}
+
+.token-package.popular {
+    border: 2px solid var(--primary-color);
+}
+
+.badge-popular {
+    position: absolute;
+    top: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--primary-color);
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 15px;
+    font-size: 0.7rem;
+    font-weight: bold;
+}
+
+.package-tokens {
+    font-size: 1.8rem;
+    font-weight: bold;
+    color: var(--primary-color);
+    margin-bottom: 0.25rem;
+}
+
+.package-label {
+    color: #666;
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+}
+
+.package-price {
+    margin-bottom: 1.5rem;
+}
+
+.package-price .price-currency {
+    font-size: 1rem;
+}
+
+.package-price .price-amount {
+    font-size: 1.5rem;
+}
+</style>
+{% endblock %}

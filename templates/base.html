@@ -17,6 +17,39 @@
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     
+    <!-- Token Display Styles -->
+    <style>
+        .token-display {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            color: #fff;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            margin-top: 0.5rem;
+        }
+        
+        .token-display.token-good {
+            background: rgba(40, 167, 69, 0.3);
+            border: 1px solid rgba(40, 167, 69, 0.5);
+        }
+        
+        .token-display.token-medium {
+            background: rgba(255, 193, 7, 0.3);
+            border: 1px solid rgba(255, 193, 7, 0.5);
+        }
+        
+        .token-display.token-low {
+            background: rgba(220, 53, 69, 0.3);
+            border: 1px solid rgba(220, 53, 69, 0.5);
+        }
+        
+        .token-display i {
+            color: #ffd700;
+        }
+    </style>
+    
     {% block head %}{% endblock %}
 </head>
 <body>
@@ -41,12 +74,33 @@
                                 Generator
                             </a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('pricing') }}">
+                                <i class="fas fa-crown me-1"></i>
+                                Pricing
+                            </a>
+                        </li>
+                        <li class="nav-item me-3">
+                            <div class="token-display" id="token-display">
+                                <i class="fas fa-coins me-1"></i>
+                                <span id="token-count">Loading...</span>
+                            </div>
+                        </li>
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
                                 <i class="fas fa-user me-1"></i>
                                 {{ current_user.username }}
                             </a>
                             <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="{{ url_for('usage_stats') }}">
+                                    <i class="fas fa-chart-line me-1"></i>
+                                    Usage Stats
+                                </a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('pricing') }}">
+                                    <i class="fas fa-crown me-1"></i>
+                                    Upgrade Plan
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
                                 <li><a class="dropdown-item" href="{{ url_for('logout') }}">
                                     <i class="fas fa-sign-out-alt me-1"></i>
                                     Logout
@@ -110,6 +164,41 @@
     
     <!-- Custom JS -->
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    
+    <!-- Token Display Script -->
+    {% if current_user.is_authenticated %}
+    <script>
+        // Load token information
+        fetch('/api/usage')
+            .then(response => response.json())
+            .then(data => {
+                const tokenDisplay = document.getElementById('token-count');
+                if (data.success) {
+                    const remaining = data.usage.tokens_remaining;
+                    const limit = data.usage.monthly_tokens_limit;
+                    tokenDisplay.innerHTML = `${remaining.toLocaleString()} / ${limit.toLocaleString()}`;
+                    
+                    // Add color coding based on usage
+                    const usagePercent = ((limit - remaining) / limit) * 100;
+                    const displayElement = document.getElementById('token-display');
+                    
+                    if (usagePercent > 80) {
+                        displayElement.classList.add('token-low');
+                    } else if (usagePercent > 60) {
+                        displayElement.classList.add('token-medium');
+                    } else {
+                        displayElement.classList.add('token-good');
+                    }
+                } else {
+                    tokenDisplay.innerHTML = 'Error loading';
+                }
+            })
+            .catch(error => {
+                console.error('Error loading token data:', error);
+                document.getElementById('token-count').innerHTML = 'Error';
+            });
+    </script>
+    {% endif %}
     
     {% block scripts %}{% endblock %}
 </body>

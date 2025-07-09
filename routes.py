@@ -6,11 +6,14 @@ from models import User, Podcast, GeneratedPodcast, Usage
 from playht_service import PlayHTService
 from openai_service import OpenAIService
 from usage_tracker import UsageTracker
+from payment_service import PaymentService
 import logging
+import os
 
 playht_service = PlayHTService()
 openai_service = OpenAIService()
 usage_tracker = UsageTracker()
+payment_service = PaymentService()
 
 @app.route('/')
 def home():
@@ -202,7 +205,7 @@ def generate_podcast():
             flash(f'Daily podcast limit reached ({usage_limits.get("daily_podcasts_limit", 0)}). Upgrade your plan for more podcasts.', 'warning')
         else:
             flash(f'Monthly token limit reached ({usage_limits.get("monthly_tokens_limit", 0)}). Upgrade your plan for more tokens.', 'warning')
-        return redirect(url_for('generator'))
+        return redirect(url_for('pricing'))
     
     try:
         # Use the provided script content directly (user formats it with Host 1:/Host 2:)
@@ -317,6 +320,93 @@ def delete_podcast(podcast_id):
         flash('An error occurred while deleting the podcast.', 'error')
     
     return redirect(url_for('generator'))
+
+# Payment Routes
+@app.route('/pricing')
+@login_required
+def pricing():
+    """Display pricing plans"""
+    plans = payment_service.get_all_plans()
+    usage_stats = usage_tracker.check_usage_limits(current_user.id)
+    return render_template('pricing.html', plans=plans, usage_stats=usage_stats, 
+                         current_plan=current_user.plan_status)
+
+@app.route('/upgrade/<plan_type>')
+@login_required
+def upgrade_plan(plan_type):
+    """Initiate plan upgrade"""
+    if plan_type == 'free':
+        flash('You are already on the free plan.', 'info')
+        return redirect(url_for('pricing'))
+    
+    result = payment_service.create_checkout_session(current_user.id, plan_type)
+    
+    if result.get('error'):
+        flash(f'Payment error: {result["error"]}', 'error')
+        return redirect(url_for('pricing'))
+    
+    return redirect(result['checkout_url'])
+
+@app.route('/buy-tokens/<int:token_amount>')
+@login_required
+def buy_tokens(token_amount):
+    """Purchase additional tokens"""
+    valid_amounts = [10000, 25000, 50000, 100000]
+    if token_amount not in valid_amounts:
+        flash('Invalid token amount selected.', 'error')
+        return redirect(url_for('pricing'))
+    
+    result = payment_service.create_token_purchase_session(current_user.id, token_amount)
+    
+    if result.get('error'):
+        flash(f'Payment error: {result["error"]}', 'error')
+        return redirect(url_for('pricing'))
+    
+    return redirect(result['checkout_url'])
+
+@app.route('/payment/success')
+@login_required
+def payment_success():
+    """Handle successful payment"""
+    session_id = request.args.get('session_id')
+    if not session_id:
+        flash('Invalid payment session.', 'error')
+        return redirect(url_for('generator'))
+    
+    result = payment_service.handle_successful_payment(session_id)
+    
+    if result.get('error'):
+        flash(f'Payment verification failed: {result["error"]}', 'error')
+        return redirect(url_for('generator'))
+    
+    plan_info = payment_service.get_plan_info(result['plan'])
+    flash(f'Successfully upgraded to {plan_info["name"]}! You now have {plan_info["monthly_tokens"]:,} tokens per month.', 'success')
+    return redirect(url_for('generator'))
+
+@app.route('/payment/tokens-success')
+@login_required
+def tokens_success():
+    """Handle successful token purchase"""
+    session_id = request.args.get('session_id')
+    if not session_id:
+        flash('Invalid payment session.', 'error')
+        return redirect(url_for('generator'))
+    
+    result = payment_service.handle_token_purchase(session_id)
+    
+    if result.get('error'):
+        flash(f'Token purchase verification failed: {result["error"]}', 'error')
+        return redirect(url_for('generator'))
+    
+    flash(f'Successfully added {result["tokens_added"]:,} tokens to your account!', 'success')
+    return redirect(url_for('generator'))
+
+@app.route('/payment/cancel')
+@login_required
+def payment_cancel():
+    """Handle cancelled payment"""
+    flash('Payment was cancelled.', 'info')
+    return redirect(url_for('pricing'))
 
 @app.route('/usage-stats')
 @login_required
