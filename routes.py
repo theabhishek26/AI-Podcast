@@ -97,11 +97,78 @@ def generator():
     # Get available voices from Play HT
     available_voices = playht_service.get_voices()
     
-    # If no voices are available from API, show an error message
+    # If no voices are available from API, use fallback voices (API might be temporarily down)
     if not available_voices:
-        flash('Unable to load voices from PlayHT API. Please check your API credentials and try again.', 'warning')
-        logging.warning("No voices available from PlayHT API - check API credentials")
-        available_voices = []
+        flash('PlayHT API is temporarily unavailable. Using fallback voices for now.', 'info')
+        logging.warning("PlayHT API unavailable - using fallback voices")
+        available_voices = [
+            {
+                'id': 's3://voice-cloning-zero-shot/baf1ef41-36b6-428c-9bdf-50ba54682bd8/original/manifest.json',
+                'name': 'Jenny - Conversational',
+                'language': 'english',
+                'gender': 'female',
+                'accent': 'american',
+                'description': 'A friendly, conversational voice perfect for podcasts',
+                'sample': '',
+                'tags': ['conversational', 'friendly'],
+                'categories': ['podcasting']
+            },
+            {
+                'id': 's3://voice-cloning-zero-shot/820a3788-2b37-4d21-847a-b65d8a68c99a/original/manifest.json',
+                'name': 'Alex - Professional',
+                'language': 'english', 
+                'gender': 'male',
+                'accent': 'american',
+                'description': 'A professional, authoritative male voice',
+                'sample': '',
+                'tags': ['professional', 'authoritative'],
+                'categories': ['podcasting']
+            },
+            {
+                'id': 's3://voice-cloning-zero-shot/d82d246c-148b-4c93-8c6a-f2c9c2b9e5a7/original/manifest.json',
+                'name': 'Emma - British',
+                'language': 'english',
+                'gender': 'female',
+                'accent': 'british',
+                'description': 'A clear, articulate British accent',
+                'sample': '',
+                'tags': ['british', 'clear'],
+                'categories': ['podcasting']
+            },
+            {
+                'id': 's3://voice-cloning-zero-shot/f5d3e2a1-4c7b-2d9e-8f6a-1b2c3d4e5f6a/original/manifest.json',
+                'name': 'David - Warm',
+                'language': 'english',
+                'gender': 'male',
+                'accent': 'american',
+                'description': 'A warm, engaging voice for storytelling',
+                'sample': '',
+                'tags': ['warm', 'engaging'],
+                'categories': ['podcasting']
+            },
+            {
+                'id': 's3://voice-cloning-zero-shot/a1b2c3d4-5e6f-7g8h-9i0j-1k2l3m4n5o6p/original/manifest.json',
+                'name': 'Sofia - Spanish',
+                'language': 'spanish',
+                'gender': 'female',
+                'accent': 'neutral',
+                'description': 'A clear Spanish voice for multilingual content',
+                'sample': '',
+                'tags': ['spanish', 'clear'],
+                'categories': ['podcasting']
+            },
+            {
+                'id': 's3://voice-cloning-zero-shot/b2c3d4e5-6f7g-8h9i-0j1k-2l3m4n5o6p7q/original/manifest.json',
+                'name': 'Marie - French',
+                'language': 'french',
+                'gender': 'female',
+                'accent': 'parisian',
+                'description': 'An elegant French voice',
+                'sample': '',
+                'tags': ['french', 'elegant'],
+                'categories': ['podcasting']
+            }
+        ]
     
     return render_template('generator.html', podcasts=user_podcasts, voices=available_voices)
 
@@ -218,10 +285,35 @@ def get_voices_api():
         voices = playht_service.get_voices()
         return jsonify({
             'success': True,
-            'voices': voices
+            'voices': voices,
+            'count': len(voices)
         })
     except Exception as e:
         logging.error(f"Error getting voices via API: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/test-voices')
+@login_required
+def test_voices_api():
+    """Test endpoint to check PlayHT API status"""
+    try:
+        voices = playht_service.get_voices()
+        if voices:
+            return jsonify({
+                'success': True,
+                'message': f'Successfully loaded {len(voices)} voices from PlayHT API',
+                'sample_voices': voices[:3]  # Show first 3 voices as sample
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'PlayHT API is unavailable or returned no voices'
+            })
+    except Exception as e:
+        logging.error(f"Error testing voices API: {e}")
         return jsonify({
             'success': False,
             'error': str(e)

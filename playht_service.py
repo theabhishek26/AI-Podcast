@@ -185,9 +185,9 @@ class PlayHTService:
             'error': 'Job timed out waiting for completion'
         }
     
-    def get_voices(self):
+    def get_voices(self, retry_count=3):
         """
-        Get available voices from Play HT API using v1 endpoint
+        Get available voices from Play HT API using v1 endpoint with retry logic
         """
         if not self.api_key or not self.user_id:
             logging.warning("PlayHT API credentials not available")
@@ -199,55 +199,82 @@ class PlayHTService:
             'Content-Type': 'application/json'
         }
         
-        try:
-            # Use v1 endpoint as specified in documentation
-            response = requests.get(
-                f"{self.base_url}/v1/voices",
-                headers=headers,
-                timeout=30
-            )
-            
-            if response.status_code == 200:
-                voices_data = response.json()
-                logging.info(f"Successfully fetched {len(voices_data)} voices from PlayHT API")
+        for attempt in range(retry_count):
+            try:
+                # Use v1 endpoint as specified in documentation
+                response = requests.get(
+                    f"{self.base_url}/v1/voices",
+                    headers=headers,
+                    timeout=30
+                )
                 
-                # Extract and format voices for the dropdown
-                formatted_voices = []
-                
-                for voice in voices_data:
-                    # Ensure we have the required fields
-                    voice_id = voice.get('id', '')
-                    voice_name = voice.get('name', 'Unknown Voice')
+                if response.status_code == 200:
+                    voices_data = response.json()
+                    logging.info(f"Successfully fetched {len(voices_data)} voices from PlayHT API")
                     
-                    if voice_id and voice_name:
-                        formatted_voices.append({
-                            'id': voice_id,
-                            'name': voice_name,
-                            'language': voice.get('language', 'unknown'),
-                            'gender': voice.get('gender', 'unknown'),
-                            'accent': voice.get('accent', ''),
-                            'description': voice.get('description', ''),
-                            'sample': voice.get('sample', ''),
-                            'tags': voice.get('tags', []),
-                            'categories': voice.get('categories', []),
-                            'updatedDate': voice.get('updatedDate', 0),
-                            'createdDate': voice.get('createdDate', 0)
-                        })
+                    # Extract and format voices for the dropdown
+                    formatted_voices = []
+                    
+                    for voice in voices_data:
+                        # Ensure we have the required fields
+                        voice_id = voice.get('id', '')
+                        voice_name = voice.get('name', 'Unknown Voice')
+                        
+                        if voice_id and voice_name:
+                            formatted_voices.append({
+                                'id': voice_id,
+                                'name': voice_name,
+                                'language': voice.get('language', 'unknown'),
+                                'gender': voice.get('gender', 'unknown'),
+                                'accent': voice.get('accent', ''),
+                                'description': voice.get('description', ''),
+                                'sample': voice.get('sample', ''),
+                                'tags': voice.get('tags', []),
+                                'categories': voice.get('categories', []),
+                                'updatedDate': voice.get('updatedDate', 0),
+                                'createdDate': voice.get('createdDate', 0)
+                            })
+                    
+                    # Sort voices by language, then by name
+                    formatted_voices.sort(key=lambda x: (x['language'], x['name']))
+                    logging.info(f"Formatted {len(formatted_voices)} voices for use")
+                    return formatted_voices
                 
-                # Sort voices by language, then by name
-                formatted_voices.sort(key=lambda x: (x['language'], x['name']))
-                logging.info(f"Formatted {len(formatted_voices)} voices for use")
-                return formatted_voices
-            else:
-                logging.error(f"Failed to get voices: {response.status_code} - {response.text}")
+                elif response.status_code == 401:
+                    logging.error("Invalid API credentials for PlayHT")
+                    return []
+                
+                elif response.status_code == 503:
+                    logging.warning(f"PlayHT API temporarily unavailable (503) - attempt {attempt + 1}/{retry_count}")
+                    if attempt < retry_count - 1:
+                        time.sleep(2 ** attempt)  # Exponential backoff
+                        continue
+                    else:
+                        logging.error("PlayHT API unavailable after all retry attempts")
+                        return []
+                
+                else:
+                    logging.error(f"Failed to get voices: {response.status_code} - {response.text}")
+                    return []
+            
+            except requests.exceptions.Timeout:
+                logging.error(f"Timeout while fetching voices from PlayHT API - attempt {attempt + 1}/{retry_count}")
+                if attempt < retry_count - 1:
+                    time.sleep(2)
+                    continue
+                else:
+                    return []
+            
+            except requests.exceptions.RequestException as e:
+                logging.error(f"Request error while fetching voices: {e}")
+                if attempt < retry_count - 1:
+                    time.sleep(2)
+                    continue
+                else:
+                    return []
+            
+            except Exception as e:
+                logging.error(f"Unexpected error getting voices: {e}")
                 return []
         
-        except requests.exceptions.Timeout:
-            logging.error("Timeout while fetching voices from PlayHT API")
-            return []
-        except requests.exceptions.RequestException as e:
-            logging.error(f"Request error while fetching voices: {e}")
-            return []
-        except Exception as e:
-            logging.error(f"Unexpected error getting voices: {e}")
-            return []
+        return []
