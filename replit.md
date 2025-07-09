@@ -33,8 +33,22 @@ The application follows a traditional Flask web application architecture with th
 - **static/js/main.js**: Client-side JavaScript for form validation and interactions
 
 ### Database Schema
-- **User Model**: Authentication and user management (id, username, email, password_hash, created_at)
-- **Podcast Model**: Podcast episodes with generation status tracking (id, title, description, content, audio_url, playht_job_id, status, created_at, user_id)
+
+#### New Neon Database Tables (PostgreSQL)
+- **Users Table**: Enhanced user management with subscription support
+  - id, username, email, password_hash, stripe_customer_id, plan_status (free/pro/elite), expires_at, created_at
+  - Includes plan limits and subscription management methods
+
+- **Usage Table**: Token usage tracking for AI features
+  - id, user_id, feature_type (script_generation/tts_generation), tokens_used, request_type, created_at
+  - Enables plan-based usage limits and billing analytics
+
+- **Generated Podcasts Table**: Complete podcast generation history
+  - id, user_id, title, description, content, audio_url, voice_1, voice_2, duration_seconds, file_size_mb, tokens_used, status, error_message, created_at, updated_at
+  - Tracks all podcast generations with detailed metadata
+
+#### Legacy Tables (Maintained for Migration)
+- **Podcast Model**: Original podcast table for backward compatibility
 
 ## Data Flow
 
@@ -102,3 +116,4 @@ Changelog:
 - July 09, 2025. Added PostgreSQL database with proper environment variables. Database is now connected and ready for production use.
 - July 09, 2025. Implemented complete PlayHT v1 API integration with dual-voice dialogue support using PlayDialog model. Added comprehensive error handling and proper job polling. Voice selection works with 256 real voices, but audio generation requires paid plan upgrade.
 - July 09, 2025. **MAJOR UPDATE**: Replaced PlayHT with OpenAI TTS due to paid plan limitations. Implemented complete OpenAI TTS integration with dual-voice support, 6 voice options, and proper audio file handling. System now fully functional with structured Host 1:/Host 2: dialogue format.
+- July 09, 2025. **DATABASE MIGRATION**: Created comprehensive Neon database schema with three main tables: Users (with Stripe integration and subscription plans), Usage (token tracking for AI features), and Generated Podcasts (complete podcast history). Added plan-based usage limits and subscription management capabilities.
