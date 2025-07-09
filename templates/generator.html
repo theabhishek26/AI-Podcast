@@ -45,14 +45,26 @@
                                     <select class="form-control" id="voice1" name="voice1" required>
                                         <option value="">Choose voice for Host 1</option>
                                         {% if voices %}
+                                            {% set current_language = '' %}
                                             {% for voice in voices %}
-                                                <option value="{{ voice.id }}" data-language="{{ voice.language }}" data-gender="{{ voice.gender }}" data-accent="{{ voice.accent }}">
-                                                    {{ voice.name }} 
-                                                    {% if voice.language %}({{ voice.language }}{% if voice.gender %}, {{ voice.gender }}{% endif %}{% if voice.accent %}, {{ voice.accent }}{% endif %}){% endif %}
+                                                {% if voice.language != current_language %}
+                                                    {% if current_language != '' %}</optgroup>{% endif %}
+                                                    <optgroup label="{{ voice.language.title() }}">
+                                                    {% set current_language = voice.language %}
+                                                {% endif %}
+                                                <option value="{{ voice.id }}" 
+                                                        data-language="{{ voice.language }}" 
+                                                        data-gender="{{ voice.gender }}" 
+                                                        data-accent="{{ voice.accent }}"
+                                                        data-description="{{ voice.description }}"
+                                                        data-tags="{{ voice.tags | join(',') }}"
+                                                        data-categories="{{ voice.categories | join(',') }}">
+                                                    {{ voice.name }} ({{ voice.gender.title() }}{% if voice.accent %}, {{ voice.accent }}{% endif %})
                                                 </option>
                                             {% endfor %}
+                                            {% if current_language != '' %}</optgroup>{% endif %}
                                         {% else %}
-                                            <option value="en-US-JennyNeural">Jenny - US English, Female</option>
+                                            <option value="" disabled>No voices available - check API credentials</option>
                                         {% endif %}
                                     </select>
                                 </div>
@@ -61,14 +73,26 @@
                                     <select class="form-control" id="voice2" name="voice2" required>
                                         <option value="">Choose voice for Host 2</option>
                                         {% if voices %}
+                                            {% set current_language = '' %}
                                             {% for voice in voices %}
-                                                <option value="{{ voice.id }}" data-language="{{ voice.language }}" data-gender="{{ voice.gender }}" data-accent="{{ voice.accent }}">
-                                                    {{ voice.name }} 
-                                                    {% if voice.language %}({{ voice.language }}{% if voice.gender %}, {{ voice.gender }}{% endif %}{% if voice.accent %}, {{ voice.accent }}{% endif %}){% endif %}
+                                                {% if voice.language != current_language %}
+                                                    {% if current_language != '' %}</optgroup>{% endif %}
+                                                    <optgroup label="{{ voice.language.title() }}">
+                                                    {% set current_language = voice.language %}
+                                                {% endif %}
+                                                <option value="{{ voice.id }}" 
+                                                        data-language="{{ voice.language }}" 
+                                                        data-gender="{{ voice.gender }}" 
+                                                        data-accent="{{ voice.accent }}"
+                                                        data-description="{{ voice.description }}"
+                                                        data-tags="{{ voice.tags | join(',') }}"
+                                                        data-categories="{{ voice.categories | join(',') }}">
+                                                    {{ voice.name }} ({{ voice.gender.title() }}{% if voice.accent %}, {{ voice.accent }}{% endif %})
                                                 </option>
                                             {% endfor %}
+                                            {% if current_language != '' %}</optgroup>{% endif %}
                                         {% else %}
-                                            <option value="en-US-GuyNeural">Guy - US English, Male</option>
+                                            <option value="" disabled>No voices available - check API credentials</option>
                                         {% endif %}
                                     </select>
                                 </div>

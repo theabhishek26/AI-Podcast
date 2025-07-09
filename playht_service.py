@@ -190,6 +190,7 @@ class PlayHTService:
         Get available voices from Play HT API using v1 endpoint
         """
         if not self.api_key or not self.user_id:
+            logging.warning("PlayHT API credentials not available")
             return []
         
         headers = {
@@ -202,32 +203,51 @@ class PlayHTService:
             # Use v1 endpoint as specified in documentation
             response = requests.get(
                 f"{self.base_url}/v1/voices",
-                headers=headers
+                headers=headers,
+                timeout=30
             )
             
             if response.status_code == 200:
                 voices_data = response.json()
+                logging.info(f"Successfully fetched {len(voices_data)} voices from PlayHT API")
+                
                 # Extract and format voices for the dropdown
                 formatted_voices = []
                 
                 for voice in voices_data:
-                    formatted_voices.append({
-                        'id': voice.get('id', ''),
-                        'name': voice.get('name', 'Unknown Voice'),
-                        'language': voice.get('language', 'Unknown'),
-                        'gender': voice.get('gender', 'Unknown'),
-                        'accent': voice.get('accent', ''),
-                        'description': voice.get('description', ''),
-                        'sample': voice.get('sample', ''),
-                        'tags': voice.get('tags', []),
-                        'categories': voice.get('categories', [])
-                    })
+                    # Ensure we have the required fields
+                    voice_id = voice.get('id', '')
+                    voice_name = voice.get('name', 'Unknown Voice')
+                    
+                    if voice_id and voice_name:
+                        formatted_voices.append({
+                            'id': voice_id,
+                            'name': voice_name,
+                            'language': voice.get('language', 'unknown'),
+                            'gender': voice.get('gender', 'unknown'),
+                            'accent': voice.get('accent', ''),
+                            'description': voice.get('description', ''),
+                            'sample': voice.get('sample', ''),
+                            'tags': voice.get('tags', []),
+                            'categories': voice.get('categories', []),
+                            'updatedDate': voice.get('updatedDate', 0),
+                            'createdDate': voice.get('createdDate', 0)
+                        })
                 
+                # Sort voices by language, then by name
+                formatted_voices.sort(key=lambda x: (x['language'], x['name']))
+                logging.info(f"Formatted {len(formatted_voices)} voices for use")
                 return formatted_voices
             else:
                 logging.error(f"Failed to get voices: {response.status_code} - {response.text}")
                 return []
         
+        except requests.exceptions.Timeout:
+            logging.error("Timeout while fetching voices from PlayHT API")
+            return []
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Request error while fetching voices: {e}")
+            return []
         except Exception as e:
-            logging.error(f"Error getting voices: {e}")
+            logging.error(f"Unexpected error getting voices: {e}")
             return []

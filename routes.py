@@ -97,43 +97,11 @@ def generator():
     # Get available voices from Play HT
     available_voices = playht_service.get_voices()
     
-    # If no voices are available from API, provide fallback voices with proper v1 API format
+    # If no voices are available from API, show an error message
     if not available_voices:
-        available_voices = [
-            {
-                'id': 's3://voice-cloning-zero-shot/baf1ef41-36b6-428c-9bdf-50ba54682bd8/original/manifest.json',
-                'name': 'Jenny - Conversational',
-                'language': 'english',
-                'gender': 'female',
-                'accent': 'american',
-                'description': 'A friendly, conversational voice perfect for podcasts',
-                'sample': '',
-                'tags': ['conversational', 'friendly'],
-                'categories': ['podcasting']
-            },
-            {
-                'id': 's3://voice-cloning-zero-shot/820a3788-2b37-4d21-847a-b65d8a68c99a/original/manifest.json',
-                'name': 'Guy - Professional',
-                'language': 'english', 
-                'gender': 'male',
-                'accent': 'american',
-                'description': 'A professional, authoritative male voice',
-                'sample': '',
-                'tags': ['professional', 'authoritative'],
-                'categories': ['podcasting']
-            },
-            {
-                'id': 's3://voice-cloning-zero-shot/d82d246c-148b-4c93-8c6a-f2c9c2b9e5a7/original/manifest.json',
-                'name': 'Libby - British',
-                'language': 'english',
-                'gender': 'female',
-                'accent': 'british',
-                'description': 'A clear, articulate British accent',
-                'sample': '',
-                'tags': ['british', 'clear'],
-                'categories': ['podcasting']
-            }
-        ]
+        flash('Unable to load voices from PlayHT API. Please check your API credentials and try again.', 'warning')
+        logging.warning("No voices available from PlayHT API - check API credentials")
+        available_voices = []
     
     return render_template('generator.html', podcasts=user_podcasts, voices=available_voices)
 
