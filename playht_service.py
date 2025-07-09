@@ -7,7 +7,7 @@ class PlayHTService:
     def __init__(self):
         self.api_key = os.getenv("PLAYHT_API_KEY", "")
         self.user_id = os.getenv("PLAYHT_USER_ID", "")
-        self.base_url = "https://api.play.ht/api"
+        self.base_url = "https://api.play.ai/api"
         
         if not self.api_key or not self.user_id:
             logging.warning("Play HT API credentials not found in environment variables")
