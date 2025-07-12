@@ -20,6 +20,11 @@ class UsageTracker:
             request_type: Specific API call type ('gpt-4o', 'tts-1', etc.)
         """
         try:
+            # Get user and deduct credits
+            user = User.query.get(user_id)
+            if user:
+                user.use_credits(tokens_used)
+            
             usage_record = Usage(
                 user_id=user_id,
                 feature_type=feature_type,
@@ -30,7 +35,7 @@ class UsageTracker:
             db.session.add(usage_record)
             db.session.commit()
             
-            self.logger.info(f"Tracked usage: User {user_id}, {feature_type}, {tokens_used} tokens")
+            self.logger.info(f"Tracked usage: User {user_id}, {feature_type}, {tokens_used} tokens. Remaining credits: {user.credits if user else 'N/A'}")
             return True
             
         except Exception as e:
@@ -117,11 +122,13 @@ class UsageTracker:
                 'monthly_tokens_limit': plan_limits['monthly_tokens'],
                 'daily_podcasts_created': daily_podcasts,
                 'daily_podcasts_limit': plan_limits['daily_podcasts'],
-                'tokens_remaining': max(0, plan_limits['monthly_tokens'] - monthly_usage['total_tokens']),
+                'tokens_remaining': user.get_available_credits(),
                 'podcasts_remaining': max(0, plan_limits['daily_podcasts'] - daily_podcasts),
-                'can_generate_script': monthly_usage['total_tokens'] < plan_limits['monthly_tokens'],
-                'can_generate_audio': (monthly_usage['total_tokens'] < plan_limits['monthly_tokens'] and 
-                                     daily_podcasts < plan_limits['daily_podcasts'])
+                'can_generate_script': user.get_available_credits() > 0,
+                'can_generate_audio': (user.get_available_credits() > 0 and 
+                                     daily_podcasts < plan_limits['daily_podcasts']),
+                'current_credits': user.credits,
+                'total_credits_purchased': user.total_credits_purchased
             }
             
         except Exception as e:

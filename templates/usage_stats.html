@@ -24,14 +24,35 @@
                     
                     {% if stats %}
                     <div class="row mt-4">
-                        <div class="col-md-12">
-                            <h5>Token Usage</h5>
-                            <div class="progress mb-3">
-                                <div class="progress-bar" role="progressbar" style="width: {{ (stats.tokens_used / stats.monthly_limit * 100) if stats.monthly_limit > 0 else 0 }}%">
-                                    {{ stats.tokens_used }} / {{ stats.monthly_limit }}
+                        <div class="col-md-6">
+                            <h5>Available Credits</h5>
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h3 class="text-primary">{{ stats.current_credits|format_number }}</h3>
+                                    <p class="text-muted mb-0">Credits Available</p>
                                 </div>
                             </div>
-                            <p class="text-muted">{{ stats.tokens_remaining }} tokens remaining this month</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h5>Total Credits Purchased</h5>
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h3 class="text-success">{{ stats.total_credits_purchased|format_number }}</h3>
+                                    <p class="text-muted mb-0">Lifetime Total</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-4">
+                        <div class="col-md-12">
+                            <h5>Monthly Usage</h5>
+                            <div class="progress mb-3">
+                                <div class="progress-bar" role="progressbar" style="width: {{ (stats.monthly_tokens_used / stats.monthly_tokens_limit * 100) if stats.monthly_tokens_limit > 0 else 0 }}%">
+                                    {{ stats.monthly_tokens_used }} / {{ stats.monthly_tokens_limit }}
+                                </div>
+                            </div>
+                            <p class="text-muted">{{ stats.monthly_tokens_used|format_number }} tokens used this month</p>
                         </div>
                     </div>
                     {% endif %}

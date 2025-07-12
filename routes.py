@@ -401,9 +401,19 @@ def confirm_payment():
         return redirect(url_for('pricing'))
     
     if payment_type == 'plan' and plan_type:
-        flash(f'Payment received! Your request to upgrade to {plan_type} plan has been submitted. Transaction ID: {transaction_id}. Your account will be upgraded within 24 hours.', 'success')
+        # Automatically upgrade user plan and add credits
+        result = payment_service.upgrade_user_plan(current_user.id, plan_type, transaction_id)
+        if result.get('success'):
+            flash(f'Payment successful! Upgraded to {result["plan_name"]} plan. Added {result["credits_added"]:,} credits. Total credits: {result["total_credits"]:,}', 'success')
+        else:
+            flash(f'Payment received! Your request to upgrade to {plan_type} plan has been submitted. Transaction ID: {transaction_id}. Your account will be upgraded within 24 hours.', 'success')
     elif payment_type == 'tokens' and token_amount:
-        flash(f'Payment received! Your request to purchase {token_amount} tokens has been submitted. Transaction ID: {transaction_id}. Tokens will be added within 24 hours.', 'success')
+        # Automatically add credits to user account
+        result = payment_service.add_tokens_to_user(current_user.id, int(token_amount), transaction_id)
+        if result.get('success'):
+            flash(f'Payment successful! Added {result["credits_added"]:,} credits. Total credits: {result["total_credits"]:,}', 'success')
+        else:
+            flash(f'Payment received! Your request to purchase {token_amount} tokens has been submitted. Transaction ID: {transaction_id}. Tokens will be added within 24 hours.', 'success')
     else:
         flash('Invalid payment details.', 'error')
         return redirect(url_for('pricing'))

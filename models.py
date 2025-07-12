@@ -13,6 +13,8 @@ class User(UserMixin, db.Model):
     razorpay_customer_id = db.Column(db.String(255), unique=True)
     plan_status = db.Column(db.String(20), default='free')  # free, pro, elite
     expires_at = db.Column(db.DateTime)
+    credits = db.Column(db.Integer, default=5000)  # Current available credits
+    total_credits_purchased = db.Column(db.Integer, default=0)  # Total credits ever purchased
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # Relationships
@@ -42,6 +44,23 @@ class User(UserMixin, db.Model):
         }
         return limits.get(self.plan_status, limits['free'])
     
+    def add_credits(self, credits_to_add):
+        """Add credits to user account"""
+        self.credits += credits_to_add
+        self.total_credits_purchased += credits_to_add
+        return self.credits
+    
+    def use_credits(self, credits_to_use):
+        """Use credits from user account"""
+        if self.credits >= credits_to_use:
+            self.credits -= credits_to_use
+            return True
+        return False
+    
+    def get_available_credits(self):
+        """Get current available credits"""
+        return self.credits
+
     def __repr__(self):
         return f'<User {self.username}>'
 

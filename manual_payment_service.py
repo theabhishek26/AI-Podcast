@@ -103,15 +103,21 @@ class ManualPaymentService:
             user.plan_status = plan_type
             user.expires_at = datetime.utcnow() + timedelta(days=30)
             
+            # Add credits based on plan
+            credits_to_add = plan_info['monthly_tokens']
+            user.add_credits(credits_to_add)
+            
             db.session.commit()
             
-            logging.info(f"User {user_id} upgraded to {plan_type} plan")
+            logging.info(f"User {user_id} upgraded to {plan_type} plan and received {credits_to_add} credits")
             
             return {
                 'success': True,
                 'plan': plan_type,
                 'plan_name': plan_info['name'],
-                'expires_at': user.expires_at
+                'expires_at': user.expires_at,
+                'credits_added': credits_to_add,
+                'total_credits': user.credits
             }
             
         except Exception as e:
@@ -126,18 +132,22 @@ class ManualPaymentService:
             if not user:
                 return {'error': 'User not found'}
             
-            # For now, we'll track tokens through the usage system
-            # In a real implementation, you'd have a separate tokens table
+            # Add credits to user account
+            user.add_credits(token_amount)
             
-            logging.info(f"Added {token_amount} tokens to user {user_id}")
+            db.session.commit()
+            
+            logging.info(f"Added {token_amount} credits to user {user_id}")
             
             return {
                 'success': True,
-                'tokens_added': token_amount
+                'credits_added': token_amount,
+                'total_credits': user.credits
             }
             
         except Exception as e:
-            logging.error(f"Error adding tokens: {e}")
+            logging.error(f"Error adding credits: {e}")
+            db.session.rollback()
             return {'error': str(e)}
     
     def get_upi_id(self):
