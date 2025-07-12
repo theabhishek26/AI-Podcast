@@ -8,9 +8,50 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeTooltips();
     initializeVoiceSelection();
     initializeScriptFormatting();
+    loadTokenDisplay();
     
     console.log('AI Podcast Generator initialized');
 });
+
+// Load token display in header
+function loadTokenDisplay() {
+    const tokenDisplay = document.getElementById('token-count');
+    if (!tokenDisplay) return;
+    
+    // Check if user is authenticated
+    const userNav = document.querySelector('.navbar-nav .dropdown-toggle');
+    if (!userNav) return;
+    
+    fetch('/api/usage')
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                tokenDisplay.textContent = 'Error Loading';
+                tokenDisplay.parentElement.style.color = '#dc3545';
+                return;
+            }
+            
+            const tokensRemaining = data.tokens_remaining || 0;
+            const monthlyLimit = data.monthly_tokens_limit || 5000;
+            
+            tokenDisplay.textContent = `${tokensRemaining.toLocaleString()} / ${monthlyLimit.toLocaleString()}`;
+            
+            // Color coding based on usage
+            const usagePercent = ((monthlyLimit - tokensRemaining) / monthlyLimit) * 100;
+            if (usagePercent > 90) {
+                tokenDisplay.parentElement.style.color = '#dc3545'; // Red
+            } else if (usagePercent > 70) {
+                tokenDisplay.parentElement.style.color = '#fd7e14'; // Orange
+            } else {
+                tokenDisplay.parentElement.style.color = '#28a745'; // Green
+            }
+        })
+        .catch(error => {
+            console.error('Error loading token count:', error);
+            tokenDisplay.textContent = 'Error Loading';
+            tokenDisplay.parentElement.style.color = '#dc3545';
+        });
+}
 
 // Script Formatting Helper
 function initializeScriptFormatting() {

@@ -326,9 +326,20 @@ def delete_podcast(podcast_id):
 @login_required
 def pricing():
     """Display pricing plans"""
-    plans = razorpay_service.get_all_plans()
+    try:
+        plans = razorpay_service.get_all_plans()
+        google_pay_id = razorpay_service.get_google_pay_id()
+    except Exception as e:
+        logging.error(f"Error loading payment service: {e}")
+        # Fallback plans for display
+        plans = {
+            'free': {'name': 'Free', 'price': 0, 'monthly_tokens': 5000, 'daily_podcasts': 3, 'description': 'Perfect for getting started'},
+            'pro': {'name': 'Pro', 'price': 199, 'monthly_tokens': 50000, 'daily_podcasts': 25, 'description': 'Great for regular users'},
+            'elite': {'name': 'Elite', 'price': 499, 'monthly_tokens': 150000, 'daily_podcasts': 100, 'description': 'For power users'}
+        }
+        google_pay_id = 'akkashyap479@oksbi'
+    
     usage_stats = usage_tracker.check_usage_limits(current_user.id)
-    google_pay_id = razorpay_service.get_google_pay_id()
     return render_template('pricing.html', plans=plans, usage_stats=usage_stats, 
                          current_plan=current_user.plan_status, google_pay_id=google_pay_id)
 
@@ -340,13 +351,18 @@ def upgrade_plan(plan_type):
         flash('You are already on the free plan.', 'info')
         return redirect(url_for('pricing'))
     
-    result = razorpay_service.create_order(current_user.id, plan_type)
-    
-    if result.get('error'):
-        flash(f'Payment error: {result["error"]}', 'error')
+    try:
+        result = razorpay_service.create_order(current_user.id, plan_type)
+        
+        if result.get('error'):
+            flash(f'Payment error: {result["error"]}', 'error')
+            return redirect(url_for('pricing'))
+        
+        return render_template('payment_checkout.html', **result)
+    except Exception as e:
+        logging.error(f"Error creating payment order: {e}")
+        flash('Payment service is currently unavailable. Please try again later or contact support.', 'error')
         return redirect(url_for('pricing'))
-    
-    return render_template('payment_checkout.html', **result)
 
 @app.route('/buy-tokens/<int:token_amount>')
 @login_required
@@ -357,13 +373,18 @@ def buy_tokens(token_amount):
         flash('Invalid token amount selected.', 'error')
         return redirect(url_for('pricing'))
     
-    result = razorpay_service.create_token_order(current_user.id, token_amount)
-    
-    if result.get('error'):
-        flash(f'Payment error: {result["error"]}', 'error')
+    try:
+        result = razorpay_service.create_token_order(current_user.id, token_amount)
+        
+        if result.get('error'):
+            flash(f'Payment error: {result["error"]}', 'error')
+            return redirect(url_for('pricing'))
+        
+        return render_template('payment_checkout.html', **result, is_token_purchase=True)
+    except Exception as e:
+        logging.error(f"Error creating token order: {e}")
+        flash('Payment service is currently unavailable. Please try again later or contact support.', 'error')
         return redirect(url_for('pricing'))
-    
-    return render_template('payment_checkout.html', **result, is_token_purchase=True)
 
 @app.route('/payment/verify', methods=['POST'])
 @login_required
@@ -379,27 +400,32 @@ def verify_payment():
         flash('Invalid payment data.', 'error')
         return redirect(url_for('generator'))
     
-    # Verify payment signature
-    if not razorpay_service.verify_payment(payment_id, order_id, signature):
-        flash('Payment verification failed.', 'error')
+    try:
+        # Verify payment signature
+        if not razorpay_service.verify_payment(payment_id, order_id, signature):
+            flash('Payment verification failed.', 'error')
+            return redirect(url_for('generator'))
+        
+        # Handle successful payment
+        if token_amount:
+            result = razorpay_service.handle_token_purchase(payment_id, order_id, current_user.id, int(token_amount))
+            if result.get('success'):
+                flash(f'Successfully added {result["tokens_added"]:,} tokens to your account!', 'success')
+            else:
+                flash(f'Error processing token purchase: {result.get("error", "Unknown error")}', 'error')
+        else:
+            result = razorpay_service.handle_successful_payment(payment_id, order_id, current_user.id, plan_type)
+            if result.get('success'):
+                plan_info = razorpay_service.get_plan_info(result['plan'])
+                flash(f'Successfully upgraded to {plan_info["name"]}! You now have {plan_info["monthly_tokens"]:,} tokens per month.', 'success')
+            else:
+                flash(f'Error processing payment: {result.get("error", "Unknown error")}', 'error')
+        
         return redirect(url_for('generator'))
-    
-    # Handle successful payment
-    if token_amount:
-        result = razorpay_service.handle_token_purchase(payment_id, order_id, current_user.id, int(token_amount))
-        if result.get('success'):
-            flash(f'Successfully added {result["tokens_added"]:,} tokens to your account!', 'success')
-        else:
-            flash(f'Error processing token purchase: {result.get("error", "Unknown error")}', 'error')
-    else:
-        result = razorpay_service.handle_successful_payment(payment_id, order_id, current_user.id, plan_type)
-        if result.get('success'):
-            plan_info = razorpay_service.get_plan_info(result['plan'])
-            flash(f'Successfully upgraded to {plan_info["name"]}! You now have {plan_info["monthly_tokens"]:,} tokens per month.', 'success')
-        else:
-            flash(f'Error processing payment: {result.get("error", "Unknown error")}', 'error')
-    
-    return redirect(url_for('generator'))
+    except Exception as e:
+        logging.error(f"Error verifying payment: {e}")
+        flash('Payment verification failed. Please contact support if payment was deducted.', 'error')
+        return redirect(url_for('generator'))
 
 @app.route('/payment/cancel')
 @login_required
@@ -441,8 +467,17 @@ def usage_stats():
 @login_required
 def get_usage_api():
     """API endpoint to get user usage statistics"""
-    stats = usage_tracker.check_usage_limits(current_user.id)
-    return jsonify(stats)
+    try:
+        stats = usage_tracker.check_usage_limits(current_user.id)
+        return jsonify(stats)
+    except Exception as e:
+        logging.error(f"Error getting usage stats: {e}")
+        return jsonify({
+            'error': 'Unable to load usage stats',
+            'tokens_remaining': 0,
+            'monthly_tokens_limit': 5000,
+            'plan_status': current_user.plan_status
+        })
 
 @app.route('/api/voices')
 @login_required
