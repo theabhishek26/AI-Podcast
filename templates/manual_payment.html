@@ -67,6 +67,9 @@
                                     <h5><i class="fas fa-qrcode me-2"></i>Scan QR Code</h5>
                                     <div class="qr-code-container mb-3">
                                         <img src="{{ payment_details.qr_code_path }}" alt="UPI QR Code" class="img-fluid rounded shadow" style="max-width: 280px;">
+                                        <div class="qr-overlay">
+                                            <div class="amount-badge">₹{{ payment_details.amount }}</div>
+                                        </div>
                                     </div>
                                     
                                     <div class="upi-details p-3 bg-light rounded">
@@ -78,9 +81,24 @@
                                                 <i class="fas fa-copy"></i> Copy
                                             </button>
                                         </p>
-                                        <p class="mb-0">
-                                            <strong>Amount:</strong> ₹{{ payment_details.amount }}
+                                        <p class="mb-2">
+                                            <strong>Amount:</strong> <span class="text-success fw-bold">₹{{ payment_details.amount }}</span>
+                                            <small class="text-muted">(Fixed Amount)</small>
                                         </p>
+                                        <p class="mb-0">
+                                            <strong>Note:</strong> {{ payment_details.payment_note }}
+                                        </p>
+                                    </div>
+                                    
+                                    <!-- Google Pay Style Payment Button -->
+                                    <div class="payment-actions mt-3">
+                                        <button class="btn btn-success btn-lg w-100" onclick="openUpiApp()">
+                                            <i class="fas fa-mobile-alt me-2"></i>
+                                            Pay ₹{{ payment_details.amount }} via UPI
+                                        </button>
+                                        <div class="mt-2 text-center">
+                                            <small class="text-muted">Amount is fixed and cannot be changed</small>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -140,6 +158,19 @@ function copyUpiId() {
         console.error('Could not copy UPI ID: ', err);
     });
 }
+
+function openUpiApp() {
+    // Use the pre-generated UPI URL with fixed amount
+    const upiUrl = "{{ payment_details.upi_url }}";
+    
+    // Try to open UPI app
+    window.location.href = upiUrl;
+    
+    // Show fallback message after a short delay
+    setTimeout(() => {
+        alert('If no UPI app opened, please scan the QR code manually or copy the UPI ID.');
+    }, 2000);
+}
 </script>
 
 <style>
@@ -159,6 +190,30 @@ function copyUpiId() {
     border-radius: 12px;
     display: inline-block;
     box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    position: relative;
+}
+
+.qr-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding: 1rem;
+    pointer-events: none;
+}
+
+.amount-badge {
+    background: rgba(0, 123, 255, 0.9);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-weight: bold;
+    font-size: 1.1rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
 .upi-details {

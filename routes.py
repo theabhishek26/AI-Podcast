@@ -351,6 +351,13 @@ def upgrade_plan(plan_type):
         flash('Invalid plan selected.', 'error')
         return redirect(url_for('pricing'))
     
+    # Generate UPI URL for the payment
+    upi_url = payment_service.generate_upi_payment_url(
+        payment_details['amount'], 
+        payment_details['payment_note']
+    )
+    payment_details['upi_url'] = upi_url
+    
     return render_template('manual_payment.html', 
                          payment_details=payment_details,
                          current_user=current_user)
@@ -368,6 +375,13 @@ def buy_tokens(token_amount):
     if not payment_details:
         flash('Invalid token amount selected.', 'error')
         return redirect(url_for('pricing'))
+    
+    # Generate UPI URL for the payment
+    upi_url = payment_service.generate_upi_payment_url(
+        payment_details['amount'], 
+        payment_details['payment_note']
+    )
+    payment_details['upi_url'] = upi_url
     
     return render_template('manual_payment.html', 
                          payment_details=payment_details,

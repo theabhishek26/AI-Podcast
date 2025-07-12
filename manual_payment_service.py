@@ -25,7 +25,7 @@ class ManualPaymentService:
             },
             'pro': {
                 'name': 'Pro',
-                'price': 199,
+                'price': 2,
                 'monthly_tokens': 50000,
                 'daily_podcasts': 25,
                 'description': 'Great for regular podcast creators'
@@ -65,7 +65,8 @@ class ManualPaymentService:
                 'description': f'Upgrade to {plan["name"]} Plan',
                 'upi_id': self.upi_id,
                 'merchant_name': self.merchant_name,
-                'qr_code_path': '/static/images/payment-qr.jpg'
+                'qr_code_path': '/static/images/payment-qr.jpg',
+                'payment_note': f'AI Podcast {plan["name"]} - {self.merchant_name}'
             }
         elif token_amount:
             packages = self.get_token_packages()
@@ -78,9 +79,16 @@ class ManualPaymentService:
                     'description': f'Purchase {token_amount:,} tokens',
                     'upi_id': self.upi_id,
                     'merchant_name': self.merchant_name,
-                    'qr_code_path': '/static/images/payment-qr.jpg'
+                    'qr_code_path': '/static/images/payment-qr.jpg',
+                    'payment_note': f'AI Podcast Tokens - {self.merchant_name}'
                 }
         return None
+    
+    def generate_upi_payment_url(self, amount, note="AI Podcast Payment"):
+        """Generate UPI payment URL for QR code with fixed amount"""
+        # UPI payment URL format: upi://pay?pa=UPI_ID&pn=NAME&am=AMOUNT&cu=INR&tn=NOTE
+        upi_url = f"upi://pay?pa={self.upi_id}&pn={self.merchant_name}&am={amount}&cu=INR&tn={note}"
+        return upi_url
     
     def upgrade_user_plan(self, user_id, plan_type, transaction_id=None):
         """Manually upgrade user plan (admin function)"""
