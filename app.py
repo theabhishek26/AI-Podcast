@@ -48,3 +48,12 @@ with app.app_context():
     
     # Create all database tables
     db.create_all()
+
+# Add custom template filters
+@app.template_filter('format_number')
+def format_number(value):
+    """Format numbers with commas"""
+    try:
+        return f"{int(value):,}"
+    except (ValueError, TypeError):
+        return value

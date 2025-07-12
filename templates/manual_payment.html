@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+
+{% block title %}Complete Payment - AI Podcast Generator{% endblock %}
+
+{% block content %}
+<section class="payment-section py-5">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-10">
+                <div class="card shadow-lg">
+                    <div class="card-header bg-primary text-white">
+                        <h3 class="mb-0">
+                            <i class="fas fa-mobile-alt me-2"></i>
+                            Complete Your Payment
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <!-- Payment Details -->
+                            <div class="col-md-6">
+                                <div class="payment-details mb-4">
+                                    <h4>Payment Details</h4>
+                                    <div class="payment-item">
+                                        <h5>{{ payment_details.description }}</h5>
+                                        {% if payment_details.type == 'plan' %}
+                                            <p class="text-muted">Upgrade to {{ payment_details.plan_name }} with enhanced features</p>
+                                        {% else %}
+                                            <p class="text-muted">Add {{ payment_details.token_amount|format_number }} tokens to your account</p>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="payment-amount mb-4">
+                                        <h2 class="text-primary">₹{{ payment_details.amount }}</h2>
+                                        <small class="text-muted">INR</small>
+                                    </div>
+                                </div>
+                                
+                                <!-- Payment Instructions -->
+                                <div class="payment-instructions">
+                                    <h5><i class="fas fa-info-circle me-2"></i>Payment Instructions</h5>
+                                    <ol class="list-group list-group-numbered">
+                                        <li class="list-group-item d-flex justify-content-between align-items-start">
+                                            <div class="ms-2 me-auto">
+                                                <div class="fw-bold">Send Payment</div>
+                                                Send ₹{{ payment_details.amount }} to UPI ID: <strong>{{ payment_details.upi_id }}</strong>
+                                            </div>
+                                        </li>
+                                        <li class="list-group-item d-flex justify-content-between align-items-start">
+                                            <div class="ms-2 me-auto">
+                                                <div class="fw-bold">Add Reference</div>
+                                                Include your username: <strong>{{ current_user.username }}</strong>
+                                            </div>
+                                        </li>
+                                        <li class="list-group-item d-flex justify-content-between align-items-start">
+                                            <div class="ms-2 me-auto">
+                                                <div class="fw-bold">Submit Transaction ID</div>
+                                                Enter transaction ID below after payment
+                                            </div>
+                                        </li>
+                                    </ol>
+                                </div>
+                            </div>
+                            
+                            <!-- QR Code and UPI Details -->
+                            <div class="col-md-6">
+                                <div class="qr-section text-center">
+                                    <h5><i class="fas fa-qrcode me-2"></i>Scan QR Code</h5>
+                                    <div class="qr-code-container mb-3">
+                                        <img src="{{ payment_details.qr_code_path }}" alt="UPI QR Code" class="img-fluid rounded shadow" style="max-width: 280px;">
+                                    </div>
+                                    
+                                    <div class="upi-details p-3 bg-light rounded">
+                                        <h6><i class="fas fa-user me-2"></i>{{ payment_details.merchant_name }}</h6>
+                                        <p class="mb-2">
+                                            <strong>UPI ID:</strong> 
+                                            <span id="upi-id">{{ payment_details.upi_id }}</span>
+                                            <button class="btn btn-sm btn-outline-primary ms-2" onclick="copyUpiId()">
+                                                <i class="fas fa-copy"></i> Copy
+                                            </button>
+                                        </p>
+                                        <p class="mb-0">
+                                            <strong>Amount:</strong> ₹{{ payment_details.amount }}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <hr class="my-4">
+                        
+                        <!-- Transaction ID Form -->
+                        <div class="row">
+                            <div class="col-md-8 mx-auto">
+                                <div class="transaction-form">
+                                    <h5><i class="fas fa-receipt me-2"></i>Submit Transaction Details</h5>
+                                    <form method="POST" action="{{ url_for('confirm_payment') }}">
+                                        <input type="hidden" name="payment_type" value="{{ payment_details.type }}">
+                                        {% if payment_details.type == 'plan' %}
+                                            <input type="hidden" name="plan_type" value="{{ payment_details.plan_type }}">
+                                        {% else %}
+                                            <input type="hidden" name="token_amount" value="{{ payment_details.token_amount }}">
+                                        {% endif %}
+                                        
+                                        <div class="mb-3">
+                                            <label for="transaction_id" class="form-label">Transaction ID</label>
+                                            <input type="text" class="form-control" id="transaction_id" name="transaction_id" 
+                                                   placeholder="Enter your UPI transaction ID" required>
+                                            <div class="form-text">
+                                                You can find the transaction ID in your UPI app after successful payment
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="d-grid gap-2">
+                                            <button type="submit" class="btn btn-success btn-lg">
+                                                <i class="fas fa-check me-2"></i>
+                                                Confirm Payment
+                                            </button>
+                                            <a href="{{ url_for('pricing') }}" class="btn btn-outline-secondary">
+                                                <i class="fas fa-arrow-left me-2"></i>
+                                                Back to Pricing
+                                            </a>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+function copyUpiId() {
+    const upiId = document.getElementById('upi-id').textContent;
+    navigator.clipboard.writeText(upiId).then(function() {
+        alert('UPI ID copied to clipboard!');
+    }, function(err) {
+        console.error('Could not copy UPI ID: ', err);
+    });
+}
+</script>
+
+<style>
+.payment-section {
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    min-height: 100vh;
+}
+
+.payment-amount h2 {
+    font-size: 2.5rem;
+    font-weight: bold;
+}
+
+.qr-code-container {
+    padding: 1rem;
+    background: white;
+    border-radius: 12px;
+    display: inline-block;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.upi-details {
+    border: 1px solid #dee2e6;
+}
+
+.transaction-form {
+    background: #f8f9fa;
+    padding: 2rem;
+    border-radius: 12px;
+    border: 1px solid #dee2e6;
+}
+
+.list-group-numbered {
+    counter-reset: section;
+}
+
+.list-group-numbered > .list-group-item::before {
+    counter-increment: section;
+    content: counter(section);
+    position: absolute;
+    left: 0.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: var(--bs-primary);
+    color: white;
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+
+.list-group-numbered > .list-group-item {
+    padding-left: 3rem;
+}
+</style>
+{% endblock %}

@@ -6,14 +6,14 @@ from models import User, Podcast, GeneratedPodcast, Usage
 from playht_service import PlayHTService
 from openai_service import OpenAIService
 from usage_tracker import UsageTracker
-from razorpay_service import RazorpayService
+from manual_payment_service import ManualPaymentService
 import logging
 import os
 
 playht_service = PlayHTService()
 openai_service = OpenAIService()
 usage_tracker = UsageTracker()
-razorpay_service = RazorpayService()
+payment_service = ManualPaymentService()
 
 @app.route('/')
 def home():
@@ -326,106 +326,96 @@ def delete_podcast(podcast_id):
 @login_required
 def pricing():
     """Display pricing plans"""
-    try:
-        plans = razorpay_service.get_all_plans()
-        google_pay_id = razorpay_service.get_google_pay_id()
-    except Exception as e:
-        logging.error(f"Error loading payment service: {e}")
-        # Fallback plans for display
-        plans = {
-            'free': {'name': 'Free', 'price': 0, 'monthly_tokens': 5000, 'daily_podcasts': 3, 'description': 'Perfect for getting started'},
-            'pro': {'name': 'Pro', 'price': 199, 'monthly_tokens': 50000, 'daily_podcasts': 25, 'description': 'Great for regular users'},
-            'elite': {'name': 'Elite', 'price': 499, 'monthly_tokens': 150000, 'daily_podcasts': 100, 'description': 'For power users'}
-        }
-        google_pay_id = 'akkashyap479@oksbi'
-    
+    plans = payment_service.get_all_plans()
+    token_packages = payment_service.get_token_packages()
+    payment_instructions = payment_service.get_payment_instructions()
     usage_stats = usage_tracker.check_usage_limits(current_user.id)
-    return render_template('pricing.html', plans=plans, usage_stats=usage_stats, 
-                         current_plan=current_user.plan_status, google_pay_id=google_pay_id)
+    
+    return render_template('pricing.html', 
+                         plans=plans, 
+                         token_packages=token_packages,
+                         payment_instructions=payment_instructions,
+                         usage_stats=usage_stats, 
+                         current_plan=current_user.plan_status)
 
 @app.route('/upgrade/<plan_type>')
 @login_required
 def upgrade_plan(plan_type):
-    """Initiate plan upgrade"""
+    """Show payment details for plan upgrade"""
     if plan_type == 'free':
         flash('You are already on the free plan.', 'info')
         return redirect(url_for('pricing'))
     
-    try:
-        result = razorpay_service.create_order(current_user.id, plan_type)
-        
-        if result.get('error'):
-            flash(f'Payment error: {result["error"]}', 'error')
-            return redirect(url_for('pricing'))
-        
-        return render_template('payment_checkout.html', **result)
-    except Exception as e:
-        logging.error(f"Error creating payment order: {e}")
-        flash('Payment service is currently unavailable. Please try again later or contact support.', 'error')
+    payment_details = payment_service.get_payment_details(plan_type=plan_type)
+    if not payment_details:
+        flash('Invalid plan selected.', 'error')
         return redirect(url_for('pricing'))
+    
+    return render_template('manual_payment.html', 
+                         payment_details=payment_details,
+                         current_user=current_user)
 
 @app.route('/buy-tokens/<int:token_amount>')
 @login_required
 def buy_tokens(token_amount):
-    """Purchase additional tokens"""
+    """Show payment details for token purchase"""
     valid_amounts = [10000, 25000, 50000, 100000]
     if token_amount not in valid_amounts:
         flash('Invalid token amount selected.', 'error')
         return redirect(url_for('pricing'))
     
-    try:
-        result = razorpay_service.create_token_order(current_user.id, token_amount)
-        
-        if result.get('error'):
-            flash(f'Payment error: {result["error"]}', 'error')
-            return redirect(url_for('pricing'))
-        
-        return render_template('payment_checkout.html', **result, is_token_purchase=True)
-    except Exception as e:
-        logging.error(f"Error creating token order: {e}")
-        flash('Payment service is currently unavailable. Please try again later or contact support.', 'error')
+    payment_details = payment_service.get_payment_details(token_amount=token_amount)
+    if not payment_details:
+        flash('Invalid token amount selected.', 'error')
         return redirect(url_for('pricing'))
+    
+    return render_template('manual_payment.html', 
+                         payment_details=payment_details,
+                         current_user=current_user)
 
-@app.route('/payment/verify', methods=['POST'])
+@app.route('/payment/confirm', methods=['POST'])
 @login_required
-def verify_payment():
-    """Handle payment verification"""
-    payment_id = request.form.get('razorpay_payment_id')
-    order_id = request.form.get('razorpay_order_id')
-    signature = request.form.get('razorpay_signature')
+def confirm_payment():
+    """Handle manual payment confirmation"""
+    transaction_id = request.form.get('transaction_id')
+    payment_type = request.form.get('payment_type')
     plan_type = request.form.get('plan_type')
     token_amount = request.form.get('token_amount')
     
-    if not all([payment_id, order_id, signature]):
-        flash('Invalid payment data.', 'error')
-        return redirect(url_for('generator'))
+    if not transaction_id:
+        flash('Please provide transaction ID.', 'error')
+        return redirect(url_for('pricing'))
     
-    try:
-        # Verify payment signature
-        if not razorpay_service.verify_payment(payment_id, order_id, signature):
-            flash('Payment verification failed.', 'error')
-            return redirect(url_for('generator'))
-        
-        # Handle successful payment
-        if token_amount:
-            result = razorpay_service.handle_token_purchase(payment_id, order_id, current_user.id, int(token_amount))
-            if result.get('success'):
-                flash(f'Successfully added {result["tokens_added"]:,} tokens to your account!', 'success')
-            else:
-                flash(f'Error processing token purchase: {result.get("error", "Unknown error")}', 'error')
-        else:
-            result = razorpay_service.handle_successful_payment(payment_id, order_id, current_user.id, plan_type)
-            if result.get('success'):
-                plan_info = razorpay_service.get_plan_info(result['plan'])
-                flash(f'Successfully upgraded to {plan_info["name"]}! You now have {plan_info["monthly_tokens"]:,} tokens per month.', 'success')
-            else:
-                flash(f'Error processing payment: {result.get("error", "Unknown error")}', 'error')
-        
-        return redirect(url_for('generator'))
-    except Exception as e:
-        logging.error(f"Error verifying payment: {e}")
-        flash('Payment verification failed. Please contact support if payment was deducted.', 'error')
-        return redirect(url_for('generator'))
+    if payment_type == 'plan' and plan_type:
+        flash(f'Payment received! Your request to upgrade to {plan_type} plan has been submitted. Transaction ID: {transaction_id}. Your account will be upgraded within 24 hours.', 'success')
+    elif payment_type == 'tokens' and token_amount:
+        flash(f'Payment received! Your request to purchase {token_amount} tokens has been submitted. Transaction ID: {transaction_id}. Tokens will be added within 24 hours.', 'success')
+    else:
+        flash('Invalid payment details.', 'error')
+        return redirect(url_for('pricing'))
+    
+    return redirect(url_for('generator'))
+
+# Admin routes for manual payment processing
+@app.route('/admin/upgrade-user', methods=['POST'])
+@login_required
+def admin_upgrade_user():
+    """Admin route to manually upgrade user plan"""
+    # This would typically have admin authentication
+    # For now, it's a simple route for manual processing
+    user_id = request.form.get('user_id')
+    plan_type = request.form.get('plan_type')
+    transaction_id = request.form.get('transaction_id')
+    
+    if not all([user_id, plan_type]):
+        return jsonify({'error': 'Missing required fields'}), 400
+    
+    result = payment_service.upgrade_user_plan(user_id, plan_type, transaction_id)
+    
+    if result.get('success'):
+        return jsonify({'message': f'User {user_id} upgraded to {plan_type} successfully'})
+    else:
+        return jsonify({'error': result.get('error', 'Unknown error')}), 500
 
 @app.route('/payment/cancel')
 @login_required
