@@ -73,7 +73,7 @@
                             {% if plan.price == 0 %}
                                 <span class="price-amount">Free</span>
                             {% else %}
-                                <span class="price-currency">$</span>
+                                <span class="price-currency">₹</span>
                                 <span class="price-amount">{{ "%.0f"|format(plan.price) }}</span>
                                 <span class="price-period">/month</span>
                             {% endif %}
@@ -117,6 +117,11 @@
                             <a href="{{ url_for('upgrade_plan', plan_type=plan_key) }}" class="btn btn-primary">
                                 Upgrade to {{ plan.name }}
                             </a>
+                            {% if google_pay_id %}
+                            <div class="mt-2">
+                                <small class="text-muted">Google Pay: <strong>{{ google_pay_id }}</strong></small>
+                            </div>
+                            {% endif %}
                         {% endif %}
                     </div>
                 </div>
@@ -137,10 +142,10 @@
         
         <div class="row">
             {% set token_packages = [
-                {'tokens': 10000, 'price': 1.00, 'popular': False},
-                {'tokens': 25000, 'price': 2.00, 'popular': True},
-                {'tokens': 50000, 'price': 3.50, 'popular': False},
-                {'tokens': 100000, 'price': 6.00, 'popular': False}
+                {'tokens': 10000, 'price': 79, 'popular': False},
+                {'tokens': 25000, 'price': 159, 'popular': True},
+                {'tokens': 50000, 'price': 279, 'popular': False},
+                {'tokens': 100000, 'price': 499, 'popular': False}
             ] %}
             
             {% for package in token_packages %}
@@ -154,7 +159,7 @@
                         <h4 class="package-tokens">{{ "{:,}".format(package.tokens) }}</h4>
                         <p class="package-label">Tokens</p>
                         <div class="package-price">
-                            <span class="price-currency">$</span>
+                            <span class="price-currency">₹</span>
                             <span class="price-amount">{{ "%.0f"|format(package.price) }}</span>
                         </div>
                     </div>
@@ -163,6 +168,11 @@
                         <a href="{{ url_for('buy_tokens', token_amount=package.tokens) }}" class="btn btn-outline-primary">
                             Buy Tokens
                         </a>
+                        {% if google_pay_id %}
+                        <div class="mt-2">
+                            <small class="text-muted">Google Pay: <strong>{{ google_pay_id }}</strong></small>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>

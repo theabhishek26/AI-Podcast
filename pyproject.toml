@@ -16,4 +16,5 @@ dependencies = [
     "openai>=1.93.2",
     "pydub>=0.25.1",
     "stripe>=12.3.0",
+    "razorpay>=1.4.2",
 ]

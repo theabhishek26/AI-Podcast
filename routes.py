@@ -6,14 +6,14 @@ from models import User, Podcast, GeneratedPodcast, Usage
 from playht_service import PlayHTService
 from openai_service import OpenAIService
 from usage_tracker import UsageTracker
-from payment_service import PaymentService
+from razorpay_service import RazorpayService
 import logging
 import os
 
 playht_service = PlayHTService()
 openai_service = OpenAIService()
 usage_tracker = UsageTracker()
-payment_service = PaymentService()
+razorpay_service = RazorpayService()
 
 @app.route('/')
 def home():
@@ -97,8 +97,8 @@ def logout():
 @app.route('/generator')
 @login_required
 def generator():
-    # Get user's generated podcasts (new table)
-    user_podcasts = GeneratedPodcast.query.filter_by(user_id=current_user.id).order_by(GeneratedPodcast.created_at.desc()).all()
+    # Get user's recent generated podcasts (new table) - only show recent 3
+    user_podcasts = GeneratedPodcast.query.filter_by(user_id=current_user.id).order_by(GeneratedPodcast.created_at.desc()).limit(3).all()
     
     # Get usage statistics
     usage_stats = usage_tracker.check_usage_limits(current_user.id)
@@ -326,10 +326,11 @@ def delete_podcast(podcast_id):
 @login_required
 def pricing():
     """Display pricing plans"""
-    plans = payment_service.get_all_plans()
+    plans = razorpay_service.get_all_plans()
     usage_stats = usage_tracker.check_usage_limits(current_user.id)
+    google_pay_id = razorpay_service.get_google_pay_id()
     return render_template('pricing.html', plans=plans, usage_stats=usage_stats, 
-                         current_plan=current_user.plan_status)
+                         current_plan=current_user.plan_status, google_pay_id=google_pay_id)
 
 @app.route('/upgrade/<plan_type>')
 @login_required
@@ -339,13 +340,13 @@ def upgrade_plan(plan_type):
         flash('You are already on the free plan.', 'info')
         return redirect(url_for('pricing'))
     
-    result = payment_service.create_checkout_session(current_user.id, plan_type)
+    result = razorpay_service.create_order(current_user.id, plan_type)
     
     if result.get('error'):
         flash(f'Payment error: {result["error"]}', 'error')
         return redirect(url_for('pricing'))
     
-    return redirect(result['checkout_url'])
+    return render_template('payment_checkout.html', **result)
 
 @app.route('/buy-tokens/<int:token_amount>')
 @login_required
@@ -356,49 +357,48 @@ def buy_tokens(token_amount):
         flash('Invalid token amount selected.', 'error')
         return redirect(url_for('pricing'))
     
-    result = payment_service.create_token_purchase_session(current_user.id, token_amount)
+    result = razorpay_service.create_token_order(current_user.id, token_amount)
     
     if result.get('error'):
         flash(f'Payment error: {result["error"]}', 'error')
         return redirect(url_for('pricing'))
     
-    return redirect(result['checkout_url'])
+    return render_template('payment_checkout.html', **result, is_token_purchase=True)
 
-@app.route('/payment/success')
+@app.route('/payment/verify', methods=['POST'])
 @login_required
-def payment_success():
-    """Handle successful payment"""
-    session_id = request.args.get('session_id')
-    if not session_id:
-        flash('Invalid payment session.', 'error')
+def verify_payment():
+    """Handle payment verification"""
+    payment_id = request.form.get('razorpay_payment_id')
+    order_id = request.form.get('razorpay_order_id')
+    signature = request.form.get('razorpay_signature')
+    plan_type = request.form.get('plan_type')
+    token_amount = request.form.get('token_amount')
+    
+    if not all([payment_id, order_id, signature]):
+        flash('Invalid payment data.', 'error')
         return redirect(url_for('generator'))
     
-    result = payment_service.handle_successful_payment(session_id)
-    
-    if result.get('error'):
-        flash(f'Payment verification failed: {result["error"]}', 'error')
+    # Verify payment signature
+    if not razorpay_service.verify_payment(payment_id, order_id, signature):
+        flash('Payment verification failed.', 'error')
         return redirect(url_for('generator'))
     
-    plan_info = payment_service.get_plan_info(result['plan'])
-    flash(f'Successfully upgraded to {plan_info["name"]}! You now have {plan_info["monthly_tokens"]:,} tokens per month.', 'success')
-    return redirect(url_for('generator'))
-
-@app.route('/payment/tokens-success')
-@login_required
-def tokens_success():
-    """Handle successful token purchase"""
-    session_id = request.args.get('session_id')
-    if not session_id:
-        flash('Invalid payment session.', 'error')
-        return redirect(url_for('generator'))
+    # Handle successful payment
+    if token_amount:
+        result = razorpay_service.handle_token_purchase(payment_id, order_id, current_user.id, int(token_amount))
+        if result.get('success'):
+            flash(f'Successfully added {result["tokens_added"]:,} tokens to your account!', 'success')
+        else:
+            flash(f'Error processing token purchase: {result.get("error", "Unknown error")}', 'error')
+    else:
+        result = razorpay_service.handle_successful_payment(payment_id, order_id, current_user.id, plan_type)
+        if result.get('success'):
+            plan_info = razorpay_service.get_plan_info(result['plan'])
+            flash(f'Successfully upgraded to {plan_info["name"]}! You now have {plan_info["monthly_tokens"]:,} tokens per month.', 'success')
+        else:
+            flash(f'Error processing payment: {result.get("error", "Unknown error")}', 'error')
     
-    result = payment_service.handle_token_purchase(session_id)
-    
-    if result.get('error'):
-        flash(f'Token purchase verification failed: {result["error"]}', 'error')
-        return redirect(url_for('generator'))
-    
-    flash(f'Successfully added {result["tokens_added"]:,} tokens to your account!', 'success')
     return redirect(url_for('generator'))
 
 @app.route('/payment/cancel')
@@ -407,6 +407,28 @@ def payment_cancel():
     """Handle cancelled payment"""
     flash('Payment was cancelled.', 'info')
     return redirect(url_for('pricing'))
+
+# Podcast Management Routes
+@app.route('/my-podcasts')
+@login_required
+def my_podcasts():
+    """Display all user's podcasts"""
+    # Get all podcasts from GeneratedPodcast table
+    podcasts = GeneratedPodcast.query.filter_by(user_id=current_user.id).order_by(GeneratedPodcast.created_at.desc()).all()
+    
+    # Also get legacy podcasts from Podcast table
+    legacy_podcasts = Podcast.query.filter_by(user_id=current_user.id).order_by(Podcast.created_at.desc()).all()
+    
+    return render_template('my_podcasts.html', podcasts=podcasts, legacy_podcasts=legacy_podcasts)
+
+@app.route('/recent-podcasts')
+@login_required
+def recent_podcasts():
+    """Display recent 3 podcasts"""
+    # Get recent 3 podcasts from GeneratedPodcast table
+    recent_podcasts = GeneratedPodcast.query.filter_by(user_id=current_user.id).order_by(GeneratedPodcast.created_at.desc()).limit(3).all()
+    
+    return render_template('recent_podcasts.html', podcasts=recent_podcasts)
 
 @app.route('/usage-stats')
 @login_required

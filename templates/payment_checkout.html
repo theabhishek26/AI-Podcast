@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+
+{% block title %}Payment Checkout - AI Podcast Generator{% endblock %}
+
+{% block head %}
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+{% endblock %}
+
+{% block content %}
+<section class="checkout-section py-5">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card shadow-lg">
+                    <div class="card-header bg-primary text-white">
+                        <h3 class="mb-0">
+                            <i class="fas fa-credit-card me-2"></i>
+                            {% if is_token_purchase %}
+                                Token Purchase
+                            {% else %}
+                                Plan Upgrade
+                            {% endif %}
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <h4>Payment Details</h4>
+                                {% if is_token_purchase %}
+                                    <h5>{{ package_name }}</h5>
+                                    <p class="text-muted">Add {{ token_amount|format_number }} tokens to your account</p>
+                                {% else %}
+                                    <h5>{{ plan_name }}</h5>
+                                    <p class="text-muted">Upgrade to {{ plan_name }} with enhanced features</p>
+                                {% endif %}
+                                
+                                <div class="payment-amount mb-4">
+                                    <h3>₹{{ "%.2f"|format(amount/100) }}</h3>
+                                    <small class="text-muted">{{ currency.upper() }}</small>
+                                </div>
+                                
+                                <div class="payment-methods">
+                                    <button id="rzp-button1" class="btn btn-primary btn-lg w-100 mb-3">
+                                        <i class="fas fa-credit-card me-2"></i>
+                                        Pay with Razorpay
+                                    </button>
+                                    
+                                    <div class="text-center">
+                                        <span class="text-muted">or</span>
+                                    </div>
+                                    
+                                    <div class="google-pay-section mt-3 p-3 bg-light rounded">
+                                        <h6><i class="fab fa-google-pay me-2"></i>Google Pay</h6>
+                                        <p class="mb-1">Send payment to: <strong>akkashyap479@oksbi</strong></p>
+                                        <p class="small text-muted">
+                                            After sending payment, contact support with transaction ID for account upgrade.
+                                        </p>
+                                        <button class="btn btn-success" onclick="copyGooglePayID()">
+                                            <i class="fas fa-copy me-1"></i>
+                                            Copy Google Pay ID
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <div class="payment-summary bg-light p-3 rounded">
+                                    <h6>Payment Summary</h6>
+                                    <hr>
+                                    {% if is_token_purchase %}
+                                        <div class="d-flex justify-content-between">
+                                            <span>Tokens:</span>
+                                            <span>{{ token_amount|format_number }}</span>
+                                        </div>
+                                    {% else %}
+                                        <div class="d-flex justify-content-between">
+                                            <span>Plan:</span>
+                                            <span>{{ plan_name }}</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between">
+                                            <span>Duration:</span>
+                                            <span>30 days</span>
+                                        </div>
+                                    {% endif %}
+                                    <hr>
+                                    <div class="d-flex justify-content-between fw-bold">
+                                        <span>Total:</span>
+                                        <span>₹{{ "%.2f"|format(amount/100) }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+var options = {
+    "key": "{{ razorpay_key_id }}", // Enter the Key ID generated from the Dashboard
+    "amount": {{ amount }}, // Amount is in currency subunits. Default currency is INR.
+    "currency": "{{ currency }}",
+    "name": "PodcastAI",
+    "description": "{% if is_token_purchase %}{{ package_name }}{% else %}{{ plan_name }}{% endif %}",
+    "order_id": "{{ order_id }}",
+    "handler": function (response){
+        // Create form and submit
+        var form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '{{ url_for("verify_payment") }}';
+        
+        var payment_id = document.createElement('input');
+        payment_id.type = 'hidden';
+        payment_id.name = 'razorpay_payment_id';
+        payment_id.value = response.razorpay_payment_id;
+        form.appendChild(payment_id);
+        
+        var order_id = document.createElement('input');
+        order_id.type = 'hidden';
+        order_id.name = 'razorpay_order_id';
+        order_id.value = response.razorpay_order_id;
+        form.appendChild(order_id);
+        
+        var signature = document.createElement('input');
+        signature.type = 'hidden';
+        signature.name = 'razorpay_signature';
+        signature.value = response.razorpay_signature;
+        form.appendChild(signature);
+        
+        {% if is_token_purchase %}
+        var token_amount = document.createElement('input');
+        token_amount.type = 'hidden';
+        token_amount.name = 'token_amount';
+        token_amount.value = '{{ token_amount }}';
+        form.appendChild(token_amount);
+        {% else %}
+        var plan_type = document.createElement('input');
+        plan_type.type = 'hidden';
+        plan_type.name = 'plan_type';
+        plan_type.value = '{{ plan_type }}';
+        form.appendChild(plan_type);
+        {% endif %}
+        
+        document.body.appendChild(form);
+        form.submit();
+    },
+    "prefill": {
+        "name": "{{ current_user.username }}",
+        "email": "{{ current_user.email }}"
+    },
+    "theme": {
+        "color": "#3B82F6"
+    }
+};
+
+var rzp1 = new Razorpay(options);
+document.getElementById('rzp-button1').onclick = function(e){
+    rzp1.open();
+    e.preventDefault();
+}
+
+function copyGooglePayID() {
+    navigator.clipboard.writeText('akkashyap479@oksbi').then(function() {
+        alert('Google Pay ID copied to clipboard!');
+    }, function(err) {
+        console.error('Could not copy text: ', err);
+    });
+}
+</script>
+{% endblock %}
